@@ -254,7 +254,7 @@
 <div class="sect2">
 <h3 id="alert-sink"><a class="anchor" href="#alert-sink"></a>1. Set up an alert receiver</h3>
 <div class="paragraph">
-<p><span class="icon"><i class="fa fa-clock"></i></span> ~30 seconds (most of it is the pull of the Python image)</p>
+<p><span class="icon"><i class="fa fa-clock"></i></span> ~30 seconds the first time on a cluster (the pull of the Python image), about 5 seconds when the image is cached</p>
 </div>
 <div class="paragraph">
 <p><strong>What:</strong> Deploy a small webhook receiver in <code>acs-alert-sink</code> and register it in ACS as a generic webhook notifier named <code>workshop-alert-sink</code>.</p>
@@ -393,7 +393,7 @@ workshop-trusted-registries       True</code></pre>
 <div class="sect2">
 <h3 id="preflight"><a class="anchor" href="#preflight"></a>3. Check a manifest before deploying it</h3>
 <div class="paragraph">
-<p><span class="icon"><i class="fa fa-clock"></i></span> ~15 seconds (the check scans the image in the manifest first)</p>
+<p><span class="icon"><i class="fa fa-clock"></i></span> ~15-30 seconds (the check scans the image in the manifest first)</p>
 </div>
 <div class="paragraph">
 <p><strong>What:</strong> Run <code>roxctl deployment check</code> on a manifest that uses the <code>latest</code> tag.</p>
@@ -432,6 +432,9 @@ Red Hat Package Manager in Image	LOW	false</code></pre>
 <div class="paragraph">
 <p><code>roxctl</code> also prints a <code>WARN</code> line about deployments without a namespace. The test manifest sets <code>namespace: acs-image-demo</code>, so you can ignore it.</p>
 </div>
+<div class="paragraph">
+<p>In the second validation run, a few hours later, the list also had <strong>Fixable Severity at least Important</strong> and <strong>Workshop - Fixable CVEs of severity Important or higher</strong>. Red Hat had published a fix for an <code>openssl-libs</code> CVE in the meantime, and the UBI 9 minimal image behind <code>latest</code> did not include it yet. CVE results change with the published data, so your list can differ.</p>
+</div>
 </div>
 </details>
 <hr>
@@ -466,12 +469,17 @@ oc --context hub wait deploy/bad-latest -n acs-image-demo \
 <summary class="title">Verify: The workload runs and the alert arrived</summary>
 <div class="content">
 <div class="paragraph">
-<p>The log has one <code>ALERT</code> line per policy violation, including <code>policy='Workshop - Image uses the latest tag' deployment='bad-latest'</code> and lines for <code>legacy-app</code>.</p>
+<p>The log has one <code>ALERT</code> line per new violation of a workshop policy: the test message from sub-step 1, the image-age violation of <code>legacy-app</code> raised in sub-step 2, and the latest-tag violation of <code>bad-latest</code>.</p>
 </div>
 <div class="listingblock console-output">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">ALERT policy='This is a test message created to test integration with StackRox.' deployment=None namespace=None stage='DEPLOY'
+ALERT policy='Workshop - Image older than 365 days' deployment='legacy-app' namespace='acs-image-demo' stage='DEPLOY'
+ALERT policy='Workshop - Image uses the latest tag' deployment='bad-latest' namespace='acs-image-demo' stage='DEPLOY'</code></pre>
 </div>
+</div>
+<div class="paragraph">
+<p>The CVE violation of <code>legacy-app</code> is not in the log. It already existed in Step 1, and ACS notifies when a violation is raised, not when a notifier is added to its policy later.</p>
 </div>
 </div>
 </details>
@@ -651,6 +659,18 @@ Policy: Workshop - Fixable CVEs of severity Important or higher
 ...</code></pre>
 </div>
 </div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+The restart of <code>current-app</code> is compliant only while its UBI 9 minimal image has no fixable Important or Critical CVE. When Red Hat publishes a fix that the image does not include yet, the CVE policy rejects the restart as well, until a rebuilt image is out and you redeploy with a new <code>CURRENT_IMAGE</code>. On the validation date, a fix for an <code>openssl-libs</code> CVE appeared between the two runs. The restart still went through because Central had not rescanned the image yet.
+</td>
+</tr>
+</table>
+</div>
 <details>
 <summary class="title">Verify: Only the compliant restart went through</summary>
 <div class="content">
@@ -730,7 +750,7 @@ oc --context hub get deploy breakglass-latest -n acs-image-demo</code></pre>
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">curl -skG -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/alerts" \
   --data-urlencode "query=Namespace:acs-image-demo" \
-  | jq -r '.alerts[] | select(.deployment.name == "breakglass-latest") | [.policy.name, .state] | @tsv'</code></pre>
+  | jq -r '.alerts[] | select(.state == "ACTIVE") | select(.deployment.name == "breakglass-latest") | [.policy.name, .state] | @tsv'</code></pre>
 </div>
 </div>
 <div class="paragraph">

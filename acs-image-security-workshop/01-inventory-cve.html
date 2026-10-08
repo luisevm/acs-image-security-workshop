@@ -527,7 +527,7 @@ done</code></pre>
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">curl -skG -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/alerts" \
   --data-urlencode "query=Namespace:acs-image-demo" \
-  | jq -r '.alerts[] | select(.policy.name | startswith("Workshop")) | [.policy.name, .deployment.name, .state] | @tsv'</code></pre>
+  | jq -r '.alerts[] | select(.state == "ACTIVE") | select(.policy.name | startswith("Workshop")) | [.policy.name, .deployment.name, .state] | @tsv'</code></pre>
 </div>
 </div>
 <details>
@@ -707,8 +707,19 @@ oc --context hub delete namespace acs-image-demo --ignore-not-found --wait
 
 # 3. Check that Central no longer has workshop policies (expect 0)
 curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/policies" \
-  | jq -r '.policies[].name' | grep -c '^Workshop - '</code></pre>
+  | jq -r '.policies[].name' | grep -c '^Workshop - '
+
+# 4. Resolve the attempted violations from Step 2 and Step 5 (they outlive the namespace)
+for id in $(curl -skG -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/alerts" \
+    --data-urlencode "query=Violation State:ATTEMPTED" \
+    | jq -r '.alerts[] | select(.policy.name | startswith("Workshop")) | .id'); do
+  curl -sk -o /dev/null -H "Authorization: Bearer ${ROX_API_TOKEN}" -X PATCH \
+    "https://${ACS_CENTRAL_ROUTE}/v1/alerts/${id}/resolve" -d '{}'
+done</code></pre>
 </div>
+</div>
+<div class="paragraph">
+<p>Central keeps a violation with the state <strong>Attempted</strong> for every request the admission controller rejected, even after the namespace is gone. The last command resolves them, so that a new run starts with an empty violation list.</p>
 </div>
 </div>
 </div>
