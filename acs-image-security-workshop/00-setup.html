@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>RHACS Image Security Workshop :: RHACS Image Security Workshop</title>
+    <link rel="canonical" href="https://luisevm.github.io/acs-image-security-workshop/acs-image-security-workshop/00-setup.html">
+    <link rel="prev" href="index.html">
+    <link rel="next" href="01-inventory-cve.html">
+    <meta name="generator" content="Antora 3.0.0">
+    <link rel="stylesheet" href="../_/css/site.css">
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item" href="https://developers.redhat.com" target="_blank"><img src="../_/img/RHDLogo.svg" height="40px" alt="Red Hat Developer Program"></a>
+      <a class="navbar-item" style="font-size: 24px; color: white" href="https://luisevm.github.io/acs-image-security-workshop">RHACS Image Security Workshop</a>
+      <button class="navbar-burger" data-target="topbar-nav">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="https://developers.redhat.com/ebooks/" target="_blank">Books</a>
+        <a class="navbar-item" href="https://developers.redhat.com/cheatsheets/" target="_blank">Cheat Sheets</a>
+        <a class="navbar-item" href="https://developers.redhat.com/events/" target="_blank">Upcoming Events</a>
+        <div class="navbar-item has-dropdown is-hoverable">
+          <a class="navbar-link" href="#">More Tutorials</a>
+          <div class="navbar-dropdown">
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/kubernetes-tutorial/" target="_blank">Kubernetes</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/istio-tutorial/" target="_blank">Istio</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/quarkus-tutorial/" target="_blank">Quarkus</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/knative-tutorial/" target="_blank">Knative</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/tekton-tutorial/" target="_blank">Tekton</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="acs-image-security-workshop" data-version="master">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <h3 class="title"><a href="index.html"></a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <a class="nav-link" href="index.html">Overview</a>
+  </li>
+  <li class="nav-item is-current-page" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="00-setup.html">Cluster Setup</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#prerequisites">Prerequisites</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#export-variables">Export Workshop Variables</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#login-clusters">Log In to the Cluster</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#install-operators">Install the Operators</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#install-acs">Install ACS Central</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#secure-cluster">Secure the Cluster</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#check-scanner">Check the Scanner</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="01-inventory-cve.html">Step 1: Inventory and CVE Posture</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#deploy-workloads">Deploy Two Workloads</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#inventory">List What Is Running</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#explore-portal">Explore CVEs in the Portal</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#roxctl-scan">Scan from the CLI</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#apply-policy">Apply the CVE Policy</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#violations">Review the Violations</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#image-check">Run a Build-Time Check</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="02-image-compliance.html">Step 2: Image Compliance</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#alert-sink">Set Up an Alert Receiver</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#apply-inform">Apply the Policies in Inform Mode</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#preflight">Check a Manifest Before Deploying</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#inform-alert">Deploy and Get Alerted</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#enforce">Switch to Enforce</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#block-creates">Try Non-Compliant Creates</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#block-updates">Try Updates and Scaling</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#ci-gate">Fail the Build-Time Check</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#break-glass">Break-Glass Bypass</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="03-policies-as-code.html">Step 3: Policies as Code</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-policies-as-code.html#fork">Check Your Fork</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-policies-as-code.html#argocd-rbac">Grant Argo CD Access</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-policies-as-code.html#create-app">Hand the Policies to Argo CD</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-policies-as-code.html#git-change">Change a Policy in Git</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-policies-as-code.html#self-heal">Watch Argo CD Undo a Manual Change</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-policies-as-code.html#portal-drift">Try to Edit in the Portal</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-policies-as-code.html#git-delete">Delete and Restore Through Git</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="05-acs-acm.html">Step 5: ACS and ACM</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="05-acs-acm.html#check-hub">Check the ACM Hub</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="05-acs-acm.html#placement">Select the Clusters</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="05-acs-acm.html#baseline-policy">Apply the ACS Baseline Policy</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="05-acs-acm.html#drift-enforcement">Turn Enforcement Off by Hand</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="05-acs-acm.html#recreate">Delete the Secured Cluster</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="index.html">RHACS Image Security Workshop</a></li>
+    <li><a href="00-setup.html">Cluster Setup</a></li>
+  </ul>
+</nav>
+  <div class="edit-this-page"><a href="https://github.com/luisevm/acs-image-security-workshop/edit/main/documentation/modules/ROOT/pages/00-setup.adoc">Edit this Page</a></div>
+  </div>
+  <div class="content">
+<article class="doc">
+<h1 class="page">RHACS Image Security Workshop</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>This page prepares the single OpenShift cluster used in every step. You install three operators (RHACS, OpenShift GitOps, and RHACM), deploy ACS Central, and register the same cluster as an ACS secured cluster with admission enforcement turned on. The RHACM hub takes the longest to come up, so you start it early and let it finish in the background.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="prerequisites"><a class="anchor" href="#prerequisites"></a>Prerequisites</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p>One OpenShift 4.x cluster and a user with <code>cluster-admin</code></p>
+</li>
+<li>
+<p><code>oc</code>, <code>jq</code>, <code>curl</code>, <code>git</code>, and <code>envsubst</code> (from the <code>gettext</code> package) on your workstation</p>
+</li>
+<li>
+<p>A GitHub account, used in <a href="03-policies-as-code.html" class="xref page">Step 3</a> to fork this repository</p>
+</li>
+<li>
+<p>Network access from your workstation to the cluster API, the cluster routes, and <code>registry.access.redhat.com</code></p>
+</li>
+</ul>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+ACS Central, the ACS secured cluster services, OpenShift GitOps, and the RHACM hub all run on this one cluster. Check that the worker nodes have enough free CPU and memory before you start.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="cluster-mapping"><a class="anchor" href="#cluster-mapping"></a>Cluster mapping</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 25%;">
+<col style="width: 50%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Role</th>
+<th class="tableblock halign-left valign-top">Context name</th>
+<th class="tableblock halign-left valign-top">Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Workshop cluster</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>hub</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Runs ACS Central, the ACS secured cluster services, OpenShift GitOps, and the RHACM hub. RHACM also manages this cluster as <code>local-cluster</code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_option_a_prepare_the_cluster_from_scratch"><a class="anchor" href="#_option_a_prepare_the_cluster_from_scratch"></a>Option A: Prepare the cluster from scratch</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Follow these sub-steps when the cluster has none of the operators yet. If someone already prepared it, go to <a href="#option-b">Option B: Quick login</a>.</p>
+</div>
+<div class="sect2">
+<h3 id="clone-repo"><a class="anchor" href="#clone-repo"></a>1. Fork and clone the repository</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Fork this repository to your GitHub account and clone your fork.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> Step 3 pushes policy changes to Git, and OpenShift GitOps can only follow a repository you can push to.</p>
+</div>
+<div class="paragraph">
+<p>Fork the repository in the GitHub web UI, then clone your fork. Keep the fork public so that Argo CD can read it without credentials.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">git clone <a href="https://github.com/GITHUB_USER/acs-image-security-workshop.git" class="bare">https://github.com/GITHUB_USER/acs-image-security-workshop.git</a>
+cd acs-image-security-workshop</code></pre>
+</div>
+</div>
+<details>
+<summary class="title">Verify: The clone points to your fork</summary>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">git remote -v</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+</div>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="export-variables"><a class="anchor" href="#export-variables"></a>2. Create <code>myenv.sh</code></h3>
+<div class="paragraph">
+<p><strong>What:</strong> Create a personal <code>myenv.sh</code> file at the repository root with your cluster details.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> Every step reads its variables from this file, and sourcing it logs you in and names the <code>oc</code> context <code>hub</code>.</p>
+</div>
+<div class="paragraph">
+<p><code>myenv.sh</code> is listed in <code>.gitignore</code> because it holds your password. Create it with this content and fill in the values in angle brackets:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># Console URL (for quick reference, not used by scripts):
+# Console: https://console-openshift-console.apps.&lt;cluster-domain&gt;
+
+# -- Workshop variables (used by envsubst in YAML manifests) ------------------
+export OCP_API_URL="https://api.&lt;cluster-domain&gt;:6443"
+export OCP_USER="&lt;user&gt;"
+export OCP_PASSWORD="&lt;password&gt;"
+
+export ACS_CLUSTER_NAME="workshop-cluster"          # cluster name shown in the ACS portal
+export GIT_REPO_URL="https://github.com/GITHUB_USER/acs-image-security-workshop.git"  # your fork (Step 3)
+export GIT_REVISION="main"
+
+# -- Context cleanup (idempotent) -------------------------------------------
+oc config delete-context hub &gt;/dev/null 2&gt;&amp;1
+
+# -- Login + rename context ----------------------------------------------------
+oc login "$OCP_API_URL" --username "$OCP_USER" --password "$OCP_PASSWORD" --insecure-skip-tls-verify=true
+oc config rename-context "$(oc config current-context)" hub
+
+# -- Current UBI 9 minimal image, pinned by digest (used by Step 1) -----------
+export CURRENT_IMAGE="registry.access.redhat.com/ubi9/ubi-minimal@$(oc image info registry.access.redhat.com/ubi9/ubi-minimal:latest --filter-by-os=linux/amd64 -o json | jq -r .digest)"
+
+# -- ACS values (available once Step 0 installed Central) ----------------------
+if oc --context hub get route central -n stackrox &gt;/dev/null 2&gt;&amp;1; then
+  export ACS_CENTRAL_ROUTE="$(oc --context hub get route central -n stackrox -o jsonpath='{.spec.host}')"
+  export ROX_ENDPOINT="${ACS_CENTRAL_ROUTE}:443"
+  # The operator generates central-htpasswd unless the Central CR names its own adminPasswordSecret
+  ROX_PW_SECRET="$(oc --context hub get central stackrox-central-services -n stackrox -o jsonpath='{.spec.central.adminPasswordSecret.name}')"
+  export ROX_ADMIN_PASSWORD="$(oc --context hub get secret "${ROX_PW_SECRET:-central-htpasswd}" -n stackrox -o jsonpath='{.data.password}' | base64 -d)"
+fi
+# API token written by Step 0 (gitignored file); roxctl reads ROX_ENDPOINT and ROX_API_TOKEN
+if [ -f .rox-token ]; then
+  export ROX_API_TOKEN="$(cat .rox-token)"
+fi
+# roxctl downloaded by Step 0 into the repository root
+case ":$PATH:" in *":$PWD:"*) ;; *) export PATH="$PWD:$PATH" ;; esac</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The ACS variables stay empty until Central exists. Source the file again after each part of this setup that creates one of them.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 22.2222%;">
+<col style="width: 33.3333%;">
+<col style="width: 44.4445%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Variable</th>
+<th class="tableblock halign-left valign-top">Used in</th>
+<th class="tableblock halign-left valign-top">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>OCP_API_URL</code>, <code>OCP_USER</code>, <code>OCP_PASSWORD</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>myenv.sh</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Cluster API URL and credentials</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ACS_CLUSTER_NAME</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>00-setup/04-secured-cluster.yaml</code>, <code>05-acs-acm/03-policy-acs-baseline.yaml</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Name of the cluster in the ACS portal</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>GIT_REPO_URL</code>, <code>GIT_REVISION</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>03-policies-as-code/02-application.yaml</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Your fork and the branch Argo CD follows</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>CURRENT_IMAGE</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>01-inventory-cve/03-current-app.yaml</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Current UBI 9 minimal image, referenced by digest</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ACS_CHANNEL</code>, <code>GITOPS_CHANNEL</code>, <code>ACM_CHANNEL</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>00-setup/01-acs-operator.yaml</code>, <code>05-gitops-operator.yaml</code>, <code>06-acm-operator.yaml</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Operator channels, read from the cluster catalog in sub-step 4</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ACS_CENTRAL_ROUTE</code>, <code>ROX_ENDPOINT</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>curl</code> and <code>roxctl</code> commands</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Host name of the ACS portal and API</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>ROX_ADMIN_PASSWORD</code>, <code>ROX_API_TOKEN</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>curl</code> and <code>roxctl</code> commands</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">ACS admin password and an API token with the Admin role</p></td>
+</tr>
+</tbody>
+</table>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+Never commit <code>myenv.sh</code> or <code>.rox-token</code>. Both are in <code>.gitignore</code>.
+</td>
+</tr>
+</table>
+</div>
+<details>
+<summary class="title">Verify: The file parses</summary>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">bash -n myenv.sh &amp;&amp; echo "myenv.sh syntax OK"</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">myenv.sh syntax OK</code></pre>
+</div>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="login-clusters"><a class="anchor" href="#login-clusters"></a>3. Log in to the cluster</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Source <code>myenv.sh</code> to log in and create the <code>hub</code> context.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> Every <code>oc</code> command in the workshop uses <code>--context hub</code>, so the context name has to exist before anything else runs.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">source myenv.sh</code></pre>
+</div>
+</div>
+<details>
+<summary class="title">Verify: You are logged in as a cluster administrator</summary>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc whoami --context hub
+oc auth can-i '*' '*' --all-namespaces --context hub
+echo "CURRENT_IMAGE=${CURRENT_IMAGE}"</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+</div>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="install-operators"><a class="anchor" href="#install-operators"></a>4. Install the RHACS, OpenShift GitOps, and RHACM operators</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Read the default channel of each operator from the cluster catalog and create the three subscriptions.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> All three operators install in parallel, which saves time, and reading the channel from the catalog avoids hard-coding a version that might not exist in your catalog.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">export ACS_CHANNEL=$(oc --context hub get packagemanifest rhacs-operator -n openshift-marketplace -o jsonpath='{.status.defaultChannel}')
+export GITOPS_CHANNEL=$(oc --context hub get packagemanifest openshift-gitops-operator -n openshift-marketplace -o jsonpath='{.status.defaultChannel}')
+export ACM_CHANNEL=$(oc --context hub get packagemanifest advanced-cluster-management -n openshift-marketplace -o jsonpath='{.status.defaultChannel}')
+echo "ACS=${ACS_CHANNEL} GITOPS=${GITOPS_CHANNEL} ACM=${ACM_CHANNEL}"</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The manifests contain <code>${ACS_CHANNEL}</code>-style placeholders, so you pipe them through <code>envsubst</code>. A plain <code>oc apply -f</code> would send the placeholders as literal text.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">envsubst &lt; 00-setup/01-acs-operator.yaml | oc --context hub apply -f -
+envsubst &lt; 00-setup/05-gitops-operator.yaml | oc --context hub apply -f -
+envsubst &lt; 00-setup/06-acm-operator.yaml | oc --context hub apply -f -</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Wait until each operator reports <code>Succeeded</code>:</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">for ns in rhacs-operator openshift-gitops-operator open-cluster-management; do
+  until oc --context hub get csv -n "$ns" -o name 2&gt;/dev/null | grep -q .; do sleep 5; done
+  oc --context hub wait csv --all -n "$ns" \
+    --for=jsonpath='{.status.phase}'=Succeeded --timeout=600s
+done</code></pre>
+</div>
+</div>
+<details>
+<summary class="title">Verify: Three operators are installed</summary>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub get subscription -A | grep -E 'rhacs-operator|openshift-gitops-operator|advanced-cluster-management'</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+</div>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="install-acm-hub"><a class="anchor" href="#install-acm-hub"></a>5. Start the RHACM hub</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Create the <code>MultiClusterHub</code> custom resource.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> The hub deploys many components and needs several minutes, so it should run in the background while you install ACS.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub apply -f 00-setup/07-multiclusterhub.yaml</code></pre>
+</div>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+Do not wait here. Continue with the next sub-step and check the hub in sub-step 9.
+</td>
+</tr>
+</table>
+</div>
+<details>
+<summary class="title">Verify: The hub is installing</summary>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub get multiclusterhub -n open-cluster-management</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+</div>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="install-acs"><a class="anchor" href="#install-acs"></a>6. Install ACS Central</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Create the <code>stackrox</code> namespace and the <code>Central</code> custom resource.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> Central hosts the ACS portal, the API, the policy engine, and the scanner that the rest of the workshop uses.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub apply -f 00-setup/02-stackrox-namespace.yaml
+oc --context hub apply -f 00-setup/03-central.yaml
+oc --context hub wait central/stackrox-central-services -n stackrox \
+  --for=condition=Deployed --timeout=900s
+oc --context hub rollout status deploy/central -n stackrox --timeout=900s</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Source <code>myenv.sh</code> again so it picks up the Central route and the admin password:</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">source myenv.sh
+echo "ACS portal: <a href="https://${ACS_CENTRAL_ROUTE}"" class="bare">https://${ACS_CENTRAL_ROUTE}"</a></code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Open the portal URL in a browser and log in as <code>admin</code> with the password stored in <code>ROX_ADMIN_PASSWORD</code>.</p>
+</div>
+<details>
+<summary class="title">Verify: Central answers on its route</summary>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">curl -sk -u "admin:${ROX_ADMIN_PASSWORD}" "https://${ACS_CENTRAL_ROUTE}/v1/metadata" | jq '{version, licenseStatus}'</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+</div>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="roxctl-token"><a class="anchor" href="#roxctl-token"></a>7. Download <code>roxctl</code> and create an API token</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Download the <code>roxctl</code> binary that matches your Central version and create an API token with the Admin role.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> The CLI checks in later steps use <code>roxctl</code>, and the <code>curl</code> calls to the ACS API need a token.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+curl -sk -u "admin:${ROX_ADMIN_PASSWORD}" -o roxctl \
+  "https://${ACS_CENTRAL_ROUTE}/api/cli/download/roxctl-${OS}"
+chmod +x roxctl
+
+curl -sk -u "admin:${ROX_ADMIN_PASSWORD}" \
+  "https://${ACS_CENTRAL_ROUTE}/v1/apitokens/generate" \
+  -d '{"name":"acs-image-workshop","roles":["Admin"]}' | jq -r .token &gt; .rox-token
+source myenv.sh</code></pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+The workshop uses <code>--insecure-skip-tls-verify</code> with <code>roxctl</code> and <code>-k</code> with <code>curl</code> because Central uses a self-signed certificate. In production, configure the clients to trust the Central CA instead.
+</td>
+</tr>
+</table>
+</div>
+<details>
+<summary class="title">Verify: <code>roxctl</code> reaches Central with the token</summary>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">roxctl version
+roxctl --insecure-skip-tls-verify central whoami</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+</div>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="secure-cluster"><a class="anchor" href="#secure-cluster"></a>8. Register the cluster as an ACS secured cluster</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Generate an init bundle, apply it, and create the <code>SecuredCluster</code> custom resource with admission enforcement turned on.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> The secured cluster services (Sensor, the admission controller, and Collector) report what runs on the cluster and enforce the policies at admission time.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">roxctl --insecure-skip-tls-verify central init-bundles generate "${ACS_CLUSTER_NAME}" \
+  --output-secrets "${ACS_CLUSTER_NAME}-init-bundle.yaml"
+oc --context hub apply -n stackrox -f "${ACS_CLUSTER_NAME}-init-bundle.yaml"</code></pre>
+</div>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+The init bundle holds certificates tied to this Central instance. The file is gitignored. If you recreate Central, generate a new bundle.
+</td>
+</tr>
+</table>
+</div>
+<div class="paragraph">
+<p>The <code>SecuredCluster</code> manifest uses <code>${ACS_CLUSTER_NAME}</code>, so apply it through <code>envsubst</code>:</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">envsubst &lt; 00-setup/04-secured-cluster.yaml | oc --context hub apply -f -
+oc --context hub wait securedcluster/stackrox-secured-cluster-services -n stackrox \
+  --for=condition=Deployed --timeout=900s
+oc --context hub rollout status deploy/sensor -n stackrox --timeout=600s
+oc --context hub rollout status deploy/admission-control -n stackrox --timeout=600s</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The manifest sets three admission controller options:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>enforcement: Enabled</code> turns on hard enforcement through the validating webhook. The <code>listenOn*</code> fields used by older guides are deprecated since RHACS 4.9.</p>
+</li>
+<li>
+<p><code>contactImageScanners: ScanIfMissing</code> lets the admission controller scan an image it has not seen before. Without it, decisions about CVEs and image age only use scan results that Central already has.</p>
+</li>
+<li>
+<p><code>bypass: BreakGlassAnnotation</code> allows the <code>admission.stackrox.io/break-glass</code> annotation used in <a href="02-image-compliance.html#break-glass" class="xref page">Step 2</a>. Every bypass is recorded as a violation.</p>
+</li>
+</ul>
+</div>
+<details>
+<summary class="title">Verify: The cluster is healthy in ACS</summary>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/clusters" \
+  | jq -r '.clusters[] | [.name, .healthStatus.overallHealthStatus] | @tsv'
+oc --context hub get validatingwebhookconfigurations | grep -i stackrox</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+</div>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="check-scanner"><a class="anchor" href="#check-scanner"></a>9. Check the scanner and the RHACM hub</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Scan a known old image and wait for the RHACM hub to reach the <code>Running</code> phase.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> Images scanned before the vulnerability database finishes loading can show zero CVEs, and Step 5 needs a running hub.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">roxctl --insecure-skip-tls-verify image scan --image registry.access.redhat.com/ubi8/ubi:8.4 \
+  --output json | jq '.result.summary'
+oc --context hub wait multiclusterhub/multiclusterhub -n open-cluster-management \
+  --for=jsonpath='{.status.phase}'=Running --timeout=1800s</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>If the scan summary shows zero vulnerabilities, wait a few minutes and run it again with <code>--force</code>.</p>
+</div>
+<details>
+<summary class="title">Verify: The scan returns CVEs and the hub is running</summary>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub get multiclusterhub -n open-cluster-management
+oc --context hub get managedcluster local-cluster</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+</div>
+</div>
+</div>
+</details>
+<hr>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="option-b"><a class="anchor" href="#option-b"></a>Option B: Quick login</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Use this path when someone already ran Option A on the cluster.</p>
+</div>
+<div class="sect2">
+<h3 id="option-b-login"><a class="anchor" href="#option-b-login"></a>1. Clone, configure, and log in</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Clone your fork, create <code>myenv.sh</code> as shown in <a href="#export-variables">2. Create <code>myenv.sh</code></a>, and source it.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> The operators and ACS are already installed, so you only need the context, the variables, <code>roxctl</code>, and an API token.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">source myenv.sh
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+curl -sk -u "admin:${ROX_ADMIN_PASSWORD}" -o roxctl \
+  "https://${ACS_CENTRAL_ROUTE}/api/cli/download/roxctl-${OS}"
+chmod +x roxctl
+curl -sk -u "admin:${ROX_ADMIN_PASSWORD}" \
+  "https://${ACS_CENTRAL_ROUTE}/v1/apitokens/generate" \
+  -d '{"name":"acs-image-workshop","roles":["Admin"]}' | jq -r .token &gt; .rox-token
+source myenv.sh</code></pre>
+</div>
+</div>
+<details>
+<summary class="title">Verify: Everything Option A creates is present</summary>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub get central,securedcluster -n stackrox
+oc --context hub get multiclusterhub -n open-cluster-management
+oc --context hub get argocd -n openshift-gitops
+roxctl --insecure-skip-tls-verify central whoami</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+</div>
+</div>
+</div>
+</details>
+<hr>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_official_documentation"><a class="anchor" href="#_official_documentation"></a>Official documentation</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.10/html-single/installing">Installing RHACS</a></p>
+</li>
+<li>
+<p><a href="https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.9/html/installing/install-secured-cluster-config-options-ocp">Secured cluster configuration options (Operator)</a></p>
+</li>
+<li>
+<p><a href="https://docs.redhat.com/en/documentation/red_hat_openshift_gitops/latest/html/installing_gitops/installing-openshift-gitops">Installing Red Hat OpenShift GitOps</a></p>
+</li>
+<li>
+<p><a href="https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_management_for_kubernetes/2.17/html/governance/governance">RHACM governance</a></p>
+</li>
+</ul>
+</div>
+<hr>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_reset"><a class="anchor" href="#_reset"></a>Reset</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The workshop resets never remove this setup. Use these commands only to remove everything from the cluster. They run in reverse order: the hub and the secured cluster go first because they depend on their operators, and Central goes after the secured cluster that reports to it.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># 1. RHACM hub, then the RHACM operator
+oc --context hub delete multiclusterhub multiclusterhub -n open-cluster-management --ignore-not-found --wait
+oc --context hub delete subscription advanced-cluster-management -n open-cluster-management --ignore-not-found
+oc --context hub delete csv -n open-cluster-management --all --ignore-not-found
+oc --context hub delete namespace open-cluster-management --ignore-not-found
+
+# 2. Secured cluster services, init bundle secrets, then Central
+oc --context hub delete securedcluster stackrox-secured-cluster-services -n stackrox --ignore-not-found --wait
+oc --context hub delete -n stackrox -f "${ACS_CLUSTER_NAME}-init-bundle.yaml" --ignore-not-found
+oc --context hub delete central stackrox-central-services -n stackrox --ignore-not-found --wait
+oc --context hub delete namespace stackrox --ignore-not-found
+
+# 3. Operators
+oc --context hub delete subscription openshift-gitops-operator -n openshift-gitops-operator --ignore-not-found
+oc --context hub delete csv -n openshift-gitops-operator --all --ignore-not-found
+oc --context hub delete namespace openshift-gitops openshift-gitops-operator --ignore-not-found
+oc --context hub delete subscription rhacs-operator -n rhacs-operator --ignore-not-found
+oc --context hub delete csv -n rhacs-operator --all --ignore-not-found
+oc --context hub delete namespace rhacs-operator --ignore-not-found
+
+# 4. Local files
+rm -f roxctl .rox-token "${ACS_CLUSTER_NAME}-init-bundle.yaml"</code></pre>
+</div>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="index.html">Overview</a></span>
+  <span class="next"><a href="01-inventory-cve.html">Step 1: Inventory and CVE Posture</a></span>
+</nav>
+</article>
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <a class="rhd-logo" href="https://developers.redhat.com" target="_blank"></div>
+</footer>
+<script src="../_/js/vendor/clipboard.js"></script>
+<script src="../_/js/site.js"></script>
+<script async src="../_/js/vendor/highlight.js"></script>
+  </body>
+</html>

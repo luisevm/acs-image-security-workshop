@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>RHACS Image Security Workshop :: RHACS Image Security Workshop</title>
+    <link rel="canonical" href="https://luisevm.github.io/acs-image-security-workshop/acs-image-security-workshop/01-inventory-cve.html">
+    <link rel="prev" href="00-setup.html">
+    <link rel="next" href="02-image-compliance.html">
+    <meta name="generator" content="Antora 3.0.0">
+    <link rel="stylesheet" href="../_/css/site.css">
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item" href="https://developers.redhat.com" target="_blank"><img src="../_/img/RHDLogo.svg" height="40px" alt="Red Hat Developer Program"></a>
+      <a class="navbar-item" style="font-size: 24px; color: white" href="https://luisevm.github.io/acs-image-security-workshop">RHACS Image Security Workshop</a>
+      <button class="navbar-burger" data-target="topbar-nav">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="https://developers.redhat.com/ebooks/" target="_blank">Books</a>
+        <a class="navbar-item" href="https://developers.redhat.com/cheatsheets/" target="_blank">Cheat Sheets</a>
+        <a class="navbar-item" href="https://developers.redhat.com/events/" target="_blank">Upcoming Events</a>
+        <div class="navbar-item has-dropdown is-hoverable">
+          <a class="navbar-link" href="#">More Tutorials</a>
+          <div class="navbar-dropdown">
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/kubernetes-tutorial/" target="_blank">Kubernetes</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/istio-tutorial/" target="_blank">Istio</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/quarkus-tutorial/" target="_blank">Quarkus</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/knative-tutorial/" target="_blank">Knative</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/tekton-tutorial/" target="_blank">Tekton</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="acs-image-security-workshop" data-version="master">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <h3 class="title"><a href="index.html"></a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <a class="nav-link" href="index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="00-setup.html">Cluster Setup</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#prerequisites">Prerequisites</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#export-variables">Export Workshop Variables</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#login-clusters">Log In to the Cluster</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#install-operators">Install the Operators</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#install-acs">Install ACS Central</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#secure-cluster">Secure the Cluster</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#check-scanner">Check the Scanner</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item is-current-page" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="01-inventory-cve.html">Step 1: Inventory and CVE Posture</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#deploy-workloads">Deploy Two Workloads</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#inventory">List What Is Running</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#explore-portal">Explore CVEs in the Portal</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#roxctl-scan">Scan from the CLI</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#apply-policy">Apply the CVE Policy</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#violations">Review the Violations</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#image-check">Run a Build-Time Check</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="02-image-compliance.html">Step 2: Image Compliance</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#alert-sink">Set Up an Alert Receiver</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#apply-inform">Apply the Policies in Inform Mode</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#preflight">Check a Manifest Before Deploying</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#inform-alert">Deploy and Get Alerted</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#enforce">Switch to Enforce</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#block-creates">Try Non-Compliant Creates</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#block-updates">Try Updates and Scaling</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#ci-gate">Fail the Build-Time Check</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#break-glass">Break-Glass Bypass</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="03-policies-as-code.html">Step 3: Policies as Code</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-policies-as-code.html#fork">Check Your Fork</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-policies-as-code.html#argocd-rbac">Grant Argo CD Access</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-policies-as-code.html#create-app">Hand the Policies to Argo CD</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-policies-as-code.html#git-change">Change a Policy in Git</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-policies-as-code.html#self-heal">Watch Argo CD Undo a Manual Change</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-policies-as-code.html#portal-drift">Try to Edit in the Portal</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-policies-as-code.html#git-delete">Delete and Restore Through Git</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="05-acs-acm.html">Step 5: ACS and ACM</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="05-acs-acm.html#check-hub">Check the ACM Hub</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="05-acs-acm.html#placement">Select the Clusters</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="05-acs-acm.html#baseline-policy">Apply the ACS Baseline Policy</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="05-acs-acm.html#drift-enforcement">Turn Enforcement Off by Hand</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="05-acs-acm.html#recreate">Delete the Secured Cluster</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="index.html">RHACS Image Security Workshop</a></li>
+    <li><a href="01-inventory-cve.html">Step 1: Inventory and CVE Posture</a></li>
+  </ul>
+</nav>
+  <div class="edit-this-page"><a href="https://github.com/luisevm/acs-image-security-workshop/edit/main/documentation/modules/ROOT/pages/01-inventory-cve.adoc">Edit this Page</a></div>
+  </div>
+  <div class="content">
+<article class="doc">
+<h1 class="page">RHACS Image Security Workshop</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>Before you write rules about images, you need to know which images run and which of their vulnerabilities have a fix. In this step you deploy two small workloads: one built on an old UBI 8.4 image and one on the current UBI 9 minimal image, pinned by digest. You list them from OpenShift and from ACS, read their CVEs in the portal and with <code>roxctl</code>, and add a first policy that flags fixable CVEs of severity Important or higher. The policy only reports for now. Step 2 turns it into a block.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_prerequisites"><a class="anchor" href="#_prerequisites"></a>Prerequisites</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><a href="00-setup.html" class="xref page">Cluster Setup</a> completed, including the scanner check</p>
+</li>
+<li>
+<p><code>source myenv.sh</code> run in your current shell, so <code>CURRENT_IMAGE</code>, <code>ACS_CENTRAL_ROUTE</code>, and <code>ROX_API_TOKEN</code> are set</p>
+</li>
+<li>
+<p><code>roxctl</code> available in the repository root</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_how_it_works"><a class="anchor" href="#_how_it_works"></a>How it works</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Sensor watches the workloads on the cluster and sends their image references to Central. Central scans each image, stores the result by digest, and evaluates every policy whose scope matches the workload. A violation appears when a workload matches all the criteria in one policy section. The policy you add in this step is a Kubernetes <code>SecurityPolicy</code> custom resource that the RHACS <code>config-controller</code> copies into Central.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_steps_to_apply"><a class="anchor" href="#_steps_to_apply"></a>Steps to apply</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="deploy-workloads"><a class="anchor" href="#deploy-workloads"></a>1. Deploy two workloads</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Create the <code>acs-image-demo</code> namespace with a legacy workload and a current workload.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> Comparing an old image with a current one makes the CVE numbers and the policy results easy to read.</p>
+</div>
+<div class="paragraph">
+<p>The current workload uses <code>${CURRENT_IMAGE}</code>, which <code>myenv.sh</code> resolved to a digest, so it goes through <code>envsubst</code>:</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub apply -f 01-inventory-cve/01-namespace.yaml
+oc --context hub apply -f 01-inventory-cve/02-legacy-app.yaml
+envsubst &lt; 01-inventory-cve/03-current-app.yaml | oc --context hub apply -f -
+oc --context hub wait deploy --all -n acs-image-demo \
+  --for=condition=Available --timeout=300s</code></pre>
+</div>
+</div>
+<details>
+<summary class="title">Verify: Both workloads are running</summary>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub get deploy -n acs-image-demo</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+</div>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="inventory"><a class="anchor" href="#inventory"></a>2. List what is running</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Print each pod&#8217;s image reference and resolved digest, then ask ACS which images it tracks in the namespace.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> A tag can move to a different build at any time, while the digest names the exact image that runs. ACS stores images by name and digest and has no separate "application version" object.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub get pods -n acs-image-demo \
+  -o custom-columns='POD:.metadata.name,IMAGE:.spec.containers[0].image,IMAGE_ID:.status.containerStatuses[0].imageID'</code></pre>
+</div>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">curl -skG -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/images" \
+  --data-urlencode "query=Namespace:acs-image-demo" \
+  | jq -r '.images[] | [.name, .id] | @tsv'</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The legacy pod shows the tag <code>8.4</code> in its spec and a digest in its image ID. The current pod shows the digest in both places.</p>
+</div>
+<details>
+<summary class="title">Verify: ACS lists both images</summary>
+<div class="content">
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>If the ACS list is empty, Sensor has not reported the workloads yet. Wait 30 seconds and run the <code>curl</code> command again.</p>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="explore-portal"><a class="anchor" href="#explore-portal"></a>3. Explore the CVEs in the portal</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Open the vulnerability results for the <code>acs-image-demo</code> namespace and narrow them to fixable CVEs of severity Critical or Important.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> The full CVE list of an old image is long. The fixable, high-severity subset is the list an application team can act on.</p>
+</div>
+<div class="paragraph">
+<p>In the ACS portal, go to <strong>Vulnerability Management &gt; Results</strong> and open the <strong>User Workloads</strong> tab. Add the filter <strong>Namespace</strong> <code>acs-image-demo</code>, then the filters <strong>CVE status</strong> <code>Fixable</code> and <strong>Severity</strong> <code>Critical</code> and <code>Important</code>. Switch between the CVE, Image, and Deployment views to see the same findings grouped three ways.</p>
+</div>
+<div class="paragraph">
+<p>Open one CVE and look at the <strong>Fixed by</strong> column. It names the package version that removes the CVE.</p>
+</div>
+<details>
+<summary class="title">Verify: Only the legacy image has fixable Critical or Important CVEs</summary>
+<div class="content">
+<div class="paragraph">
+<p>The filtered Image view lists <code>registry.access.redhat.com/ubi8/ubi:8.4</code>.</p>
+</div>
+<div class="paragraph">
+<p>TODO-CAPTURE: describe what the filtered view showed during the validation run</p>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="roxctl-scan"><a class="anchor" href="#roxctl-scan"></a>4. Scan both images from the CLI</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Use <code>roxctl image scan</code> to print the Critical and Important CVEs of both images and their severity counts.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> The CLI returns the same data as the portal in a form you can script, which is what a CI pipeline uses later.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">roxctl --insecure-skip-tls-verify image scan --image registry.access.redhat.com/ubi8/ubi:8.4 \
+  --severity CRITICAL,IMPORTANT --output table | head -20</code></pre>
+</div>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">for img in registry.access.redhat.com/ubi8/ubi:8.4 "${CURRENT_IMAGE}"; do
+  echo "== ${img}"
+  roxctl --insecure-skip-tls-verify image scan --image "${img}" --output json | jq '.result.summary'
+done</code></pre>
+</div>
+</div>
+<details>
+<summary class="title">Verify: The legacy image has far more CVEs than the current one</summary>
+<div class="content">
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+</div>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="apply-policy"><a class="anchor" href="#apply-policy"></a>5. Apply the CVE policy</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Create a <code>SecurityPolicy</code> that flags images with a fixable CVE of severity Important or higher in <code>acs-image-demo</code>.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> A policy turns the list from the previous sub-steps into a rule that ACS checks continuously, for every new and existing workload in scope.</p>
+</div>
+<div class="paragraph">
+<p>The policy has no enforcement actions, so ACS reports violations and blocks nothing. It covers the BUILD stage (CLI and CI checks) and the DEPLOY stage (workloads on the cluster). Both criteria sit in one policy section, so a violation needs a CVE that is fixable and at least Important.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub apply -f 01-inventory-cve/04-policy-fixable-important-cves.yaml</code></pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+<code>SecurityPolicy</code> resources always go in the namespace where Central runs (<code>stackrox</code>). The <code>scope</code> field inside the policy decides which workloads it checks.
+</td>
+</tr>
+</table>
+</div>
+<details>
+<summary class="title">Verify: Central accepted the policy</summary>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub get securitypolicy workshop-fixable-important-cves -n stackrox \
+  -o jsonpath='{.status.conditions[?(@.type=="AcceptedByCentral")].status}{"\n"}'</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">True</code></pre>
+</div>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="violations"><a class="anchor" href="#violations"></a>6. Review the violations</h3>
+<div class="paragraph">
+<p><strong>What:</strong> List the violations of the new policy in the portal and through the API.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> The violation names the workload, the CVEs that matched, and the fix, which is what you hand to the team that owns the image.</p>
+</div>
+<div class="paragraph">
+<p>In the portal, go to <strong>Violations</strong> and filter by <strong>Namespace</strong> <code>acs-image-demo</code>. Open the violation for <code>legacy-app</code> and read the matched CVEs.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">curl -skG -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/alerts" \
+  --data-urlencode "query=Namespace:acs-image-demo" \
+  | jq -r '.alerts[] | select(.policy.name | startswith("Workshop")) | [.policy.name, .deployment.name, .state] | @tsv'</code></pre>
+</div>
+</div>
+<details>
+<summary class="title">Verify: Only <code>legacy-app</code> violates the policy</summary>
+<div class="content">
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+</div>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="image-check"><a class="anchor" href="#image-check"></a>7. Run a build-time check</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Run <code>roxctl image check</code> against the legacy image and print the exit code.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> This is the same check a CI pipeline runs before it pushes an image. It shows that the policy also applies at build time.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">roxctl --insecure-skip-tls-verify image check --image registry.access.redhat.com/ubi8/ubi:8.4 --output table
+echo "exit code: $?"</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The table lists the workshop policy, and the exit code is <code>0</code>. <code>roxctl image check</code> only fails when a violated policy has the "fail build" enforcement action, which you add in Step 2.</p>
+</div>
+<details>
+<summary class="title">Verify: The policy is listed and the exit code is 0</summary>
+<div class="content">
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+</div>
+</div>
+</div>
+</details>
+<hr>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_what_this_solves"><a class="anchor" href="#_what_this_solves"></a>What this solves</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 40%;">
+<col style="width: 60%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Problem</th>
+<th class="tableblock halign-left valign-top">How this step solves it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Nobody knows which image builds run on the cluster</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The pod image IDs and the ACS image list show each image by name and digest</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">CVE lists are too long to act on</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Filtering to fixable Critical and Important CVEs gives a short list with the fixing package version</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Checking for vulnerable images depends on someone remembering to look</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The CVE policy flags matching workloads continuously, at build time and on the cluster</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_what_this_does_not_solve_yet"><a class="anchor" href="#_what_this_does_not_solve_yet"></a>What this does NOT solve (yet)</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 40%;">
+<col style="width: 60%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Remaining problem</th>
+<th class="tableblock halign-left valign-top">Addressed in</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Nobody is notified when a violation appears</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="02-image-compliance.html" class="xref page">Step 2: Image compliance</a></p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Vulnerable, outdated, or untrusted images can still be deployed</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="02-image-compliance.html" class="xref page">Step 2: Image compliance</a></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_official_documentation"><a class="anchor" href="#_official_documentation"></a>Official documentation</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.11/html/operating/using-policies-to-provide-security">Using policies to provide security</a></p>
+</li>
+<li>
+<p><a href="https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.11/html/roxctl_cli/checking-policy-compliance-1">Checking policy compliance with roxctl</a></p>
+</li>
+<li>
+<p><a href="https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.11/html/operating/respond-to-violations">Responding to violations</a></p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_alternatives_considered"><a class="anchor" href="#_alternatives_considered"></a>Alternatives considered</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 66.6667%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Approach</th>
+<th class="tableblock halign-left valign-top">Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">ACS policy as a <code>SecurityPolicy</code> custom resource (this step)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Versioned like any other manifest, and the same file moves to Git in Step 3.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Policy created in the ACS portal</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Quicker the first time. There is no file to review or version, and the result is harder to reproduce on another Central.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Clone of the built-in "Fixable Severity at Least Important" policy</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Close to the same rule. Built-in policies cannot be managed as custom resources, so you would clone it first anyway.</p></td>
+</tr>
+</tbody>
+</table>
+<hr>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_reset"><a class="anchor" href="#_reset"></a>Reset</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This returns the cluster to the state at the end of the setup. The policy goes first so that ACS stops evaluating the namespace before the workloads disappear.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># 1. Policy (config-controller removes it from Central)
+oc --context hub delete securitypolicy workshop-fixable-important-cves -n stackrox --ignore-not-found
+
+# 2. Workloads and namespace
+oc --context hub delete namespace acs-image-demo --ignore-not-found --wait
+
+# 3. Check that Central no longer has workshop policies (expect 0)
+curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/policies" \
+  | jq -r '.policies[].name' | grep -c '^Workshop - '</code></pre>
+</div>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="00-setup.html">Cluster Setup</a></span>
+  <span class="next"><a href="02-image-compliance.html">Step 2: Image Compliance</a></span>
+</nav>
+</article>
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <a class="rhd-logo" href="https://developers.redhat.com" target="_blank"></div>
+</footer>
+<script src="../_/js/vendor/clipboard.js"></script>
+<script src="../_/js/site.js"></script>
+<script async src="../_/js/vendor/highlight.js"></script>
+  </body>
+</html>

@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>RHACS Image Security Workshop :: RHACS Image Security Workshop</title>
+    <link rel="canonical" href="https://luisevm.github.io/acs-image-security-workshop/acs-image-security-workshop/05-acs-acm.html">
+    <link rel="prev" href="03-policies-as-code.html">
+    <meta name="generator" content="Antora 3.0.0">
+    <link rel="stylesheet" href="../_/css/site.css">
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item" href="https://developers.redhat.com" target="_blank"><img src="../_/img/RHDLogo.svg" height="40px" alt="Red Hat Developer Program"></a>
+      <a class="navbar-item" style="font-size: 24px; color: white" href="https://luisevm.github.io/acs-image-security-workshop">RHACS Image Security Workshop</a>
+      <button class="navbar-burger" data-target="topbar-nav">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="https://developers.redhat.com/ebooks/" target="_blank">Books</a>
+        <a class="navbar-item" href="https://developers.redhat.com/cheatsheets/" target="_blank">Cheat Sheets</a>
+        <a class="navbar-item" href="https://developers.redhat.com/events/" target="_blank">Upcoming Events</a>
+        <div class="navbar-item has-dropdown is-hoverable">
+          <a class="navbar-link" href="#">More Tutorials</a>
+          <div class="navbar-dropdown">
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/kubernetes-tutorial/" target="_blank">Kubernetes</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/istio-tutorial/" target="_blank">Istio</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/quarkus-tutorial/" target="_blank">Quarkus</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/knative-tutorial/" target="_blank">Knative</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/tekton-tutorial/" target="_blank">Tekton</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="acs-image-security-workshop" data-version="master">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <h3 class="title"><a href="index.html"></a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <a class="nav-link" href="index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="00-setup.html">Cluster Setup</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#prerequisites">Prerequisites</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#export-variables">Export Workshop Variables</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#login-clusters">Log In to the Cluster</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#install-operators">Install the Operators</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#install-acs">Install ACS Central</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#secure-cluster">Secure the Cluster</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#check-scanner">Check the Scanner</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="01-inventory-cve.html">Step 1: Inventory and CVE Posture</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#deploy-workloads">Deploy Two Workloads</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#inventory">List What Is Running</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#explore-portal">Explore CVEs in the Portal</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#roxctl-scan">Scan from the CLI</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#apply-policy">Apply the CVE Policy</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#violations">Review the Violations</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#image-check">Run a Build-Time Check</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="02-image-compliance.html">Step 2: Image Compliance</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#alert-sink">Set Up an Alert Receiver</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#apply-inform">Apply the Policies in Inform Mode</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#preflight">Check a Manifest Before Deploying</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#inform-alert">Deploy and Get Alerted</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#enforce">Switch to Enforce</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#block-creates">Try Non-Compliant Creates</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#block-updates">Try Updates and Scaling</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#ci-gate">Fail the Build-Time Check</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#break-glass">Break-Glass Bypass</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="03-policies-as-code.html">Step 3: Policies as Code</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-policies-as-code.html#fork">Check Your Fork</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-policies-as-code.html#argocd-rbac">Grant Argo CD Access</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-policies-as-code.html#create-app">Hand the Policies to Argo CD</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-policies-as-code.html#git-change">Change a Policy in Git</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-policies-as-code.html#self-heal">Watch Argo CD Undo a Manual Change</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-policies-as-code.html#portal-drift">Try to Edit in the Portal</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-policies-as-code.html#git-delete">Delete and Restore Through Git</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item is-current-page" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="05-acs-acm.html">Step 5: ACS and ACM</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#check-hub">Check the ACM Hub</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#placement">Select the Clusters</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#baseline-policy">Apply the ACS Baseline Policy</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#drift-enforcement">Turn Enforcement Off by Hand</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#recreate">Delete the Secured Cluster</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="index.html">RHACS Image Security Workshop</a></li>
+    <li><a href="05-acs-acm.html">Step 5: ACS and ACM</a></li>
+  </ul>
+</nav>
+  <div class="edit-this-page"><a href="https://github.com/luisevm/acs-image-security-workshop/edit/main/documentation/modules/ROOT/pages/05-acs-acm.adoc">Edit this Page</a></div>
+  </div>
+  <div class="content">
+<article class="doc">
+<h1 class="page">RHACS Image Security Workshop</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>The policies from Steps 1 to 3 only block images while the ACS secured cluster services run with admission enforcement turned on. One manual edit of the <code>SecuredCluster</code> resource, or its deletion, and the cluster accepts any image again. In this step an RHACM governance policy makes the secured cluster configuration a requirement: RHACM checks it continuously and puts it back when it changes. The cluster is both the RHACM hub and the managed cluster <code>local-cluster</code>, so you can test this with one cluster.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_prerequisites"><a class="anchor" href="#_prerequisites"></a>Prerequisites</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><a href="03-policies-as-code.html" class="xref page">Step 3</a> completed (the policies are enforced and managed by Argo CD)</p>
+</li>
+<li>
+<p>The RHACM hub from <a href="00-setup.html#install-acm-hub" class="xref page">Cluster Setup</a> in the <code>Running</code> phase</p>
+</li>
+<li>
+<p><code>source myenv.sh</code> run in your current shell</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_how_it_works"><a class="anchor" href="#_how_it_works"></a>How it works</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>RHACM policies live on the hub. A <code>Placement</code> selects managed clusters, a <code>PlacementBinding</code> attaches the policy to the placement, and the configuration policy controller on each selected cluster compares the objects in the policy with what exists there. With <code>remediationAction: enforce</code> and <code>complianceType: musthave</code>, the controller creates the object when it is missing and corrects the listed fields when they differ. Fields the policy does not list are left alone.</p>
+</div>
+<div class="paragraph">
+<p>The policy in this step requires a <code>SecuredCluster</code> with three admission controller settings: enforcement on, scanning of unseen images, and break-glass allowed. ACS still decides which images to block. RHACM makes sure ACS is in a position to block them.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_steps_to_apply"><a class="anchor" href="#_steps_to_apply"></a>Steps to apply</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="check-hub"><a class="anchor" href="#check-hub"></a>1. Check the RHACM hub</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Confirm that the hub runs and that it manages itself as <code>local-cluster</code>.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> The policy targets <code>local-cluster</code>, so that managed cluster has to be joined and available.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub get multiclusterhub -n open-cluster-management
+oc --context hub get managedcluster local-cluster --show-labels</code></pre>
+</div>
+</div>
+<details>
+<summary class="title">Verify: <code>local-cluster</code> is joined and available</summary>
+<div class="content">
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+</div>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="placement"><a class="anchor" href="#placement"></a>2. Select the clusters</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Create the <code>acs-policies</code> namespace, bind it to the <code>global</code> cluster set, and create a placement that selects <code>local-cluster</code>.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> The placement decides where the policy applies. Changing its selector later, for example to <code>vendor=OpenShift</code>, extends the same rule to every OpenShift cluster RHACM manages.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub apply -f 05-acs-acm/01-policy-namespace.yaml
+oc --context hub apply -f 05-acs-acm/02-placement.yaml</code></pre>
+</div>
+</div>
+<details>
+<summary class="title">Verify: The placement selected <code>local-cluster</code></summary>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub get placementdecisions -n acs-policies \
+  -o jsonpath='{.items[*].status.decisions[*].clusterName}{"\n"}'</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">local-cluster</code></pre>
+</div>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="baseline-policy"><a class="anchor" href="#baseline-policy"></a>3. Apply the ACS baseline policy</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Create the RHACM policy that requires the <code>SecuredCluster</code> with admission enforcement on.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> From now on RHACM reports the cluster as non-compliant the moment the setting changes, and fixes it.</p>
+</div>
+<div class="paragraph">
+<p>The policy uses <code>${ACS_CLUSTER_NAME}</code> so that the cluster keeps the name it has in ACS, so it goes through <code>envsubst</code>:</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">envsubst &lt; 05-acs-acm/03-policy-acs-baseline.yaml | oc --context hub apply -f -</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>In the OpenShift console, switch the perspective to <strong>All Clusters</strong> and open <strong>Governance &gt; Policies</strong>. The policy <code>acs-image-enforcement-baseline</code> appears with one cluster in scope.</p>
+</div>
+<details>
+<summary class="title">Verify: The policy is compliant</summary>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub get policy acs-image-enforcement-baseline -n acs-policies</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+</div>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="drift-enforcement"><a class="anchor" href="#drift-enforcement"></a>4. Turn admission enforcement off by hand</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Set <code>admissionControl.enforcement</code> to <code>Disabled</code> on the <code>SecuredCluster</code>, watch RHACM turn it back on, and try the <code>latest</code> workload again.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> This is the shortcut someone takes when a deployment is blocked. The baseline policy reverses it.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub patch securedcluster stackrox-secured-cluster-services -n stackrox \
+  --type merge -p '{"spec":{"admissionControl":{"enforcement":"Disabled"}}}'
+for i in $(seq 1 12); do
+  oc --context hub get securedcluster stackrox-secured-cluster-services -n stackrox \
+    -o jsonpath='{.spec.admissionControl.enforcement}{"\n"}'
+  sleep 5
+done</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Once the value is back to <code>Enabled</code> and the admission controller has restarted with it, the <code>latest</code> workload is rejected again:</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub rollout status deploy/admission-control -n stackrox --timeout=300s
+oc --context hub apply -f 02-image-compliance/tests/bad-latest.yaml</code></pre>
+</div>
+</div>
+<details>
+<summary class="title">Verify: RHACM recorded the drift and fixed it</summary>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub get policy acs-policies.acs-image-enforcement-baseline -n local-cluster \
+  -o jsonpath='{range .status.details[0].history[*]}{.lastTimestamp}{"  "}{.message}{"\n"}{end}' | head -5</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+</div>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="recreate"><a class="anchor" href="#recreate"></a>5. Delete the secured cluster services</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Delete the <code>SecuredCluster</code> resource and watch RHACM create it again.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> With <code>musthave</code>, RHACM creates the resource when it is missing, so the secured cluster services come back without anyone running the setup again.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub delete securedcluster stackrox-secured-cluster-services -n stackrox --wait=false
+oc --context hub get securedcluster -n stackrox -w</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Press <span class="keyseq"><kbd>Ctrl</kbd>+<kbd>C</kbd></span> when the resource appears again, then wait for the services:</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub wait securedcluster/stackrox-secured-cluster-services -n stackrox \
+  --for=condition=Deployed --timeout=900s
+oc --context hub rollout status deploy/sensor -n stackrox --timeout=600s
+oc --context hub rollout status deploy/admission-control -n stackrox --timeout=600s</code></pre>
+</div>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+While the services are gone, nothing enforces the image policies on this cluster. RHACM shortens that window, and the window lasts until the admission controller is ready again.
+</td>
+</tr>
+</table>
+</div>
+<details>
+<summary class="title">Verify: ACS sees the cluster as healthy and blocks the <code>latest</code> image again</summary>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/clusters" \
+  | jq -r '.clusters[] | [.name, .healthStatus.overallHealthStatus] | @tsv'
+oc --context hub apply -f 02-image-compliance/tests/bad-latest.yaml</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+</div>
+</div>
+</div>
+</details>
+<hr>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="extend-fleet"><a class="anchor" href="#extend-fleet"></a>Extending this to more clusters</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>The workshop runs on one cluster, so the placement only selects <code>local-cluster</code>. On a fleet, a new managed cluster also needs the RHACS operator subscription and its own init bundle or cluster registration secret before a <code>SecuredCluster</code> can connect to Central. The community <code>policy-collection</code> repository has RHACM policies that install the operator and distribute the bundle with hub templates. This session does not cover or test that path.</p>
+</div>
+<hr>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_what_this_solves"><a class="anchor" href="#_what_this_solves"></a>What this solves</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 40%;">
+<col style="width: 60%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Problem from Step 3</th>
+<th class="tableblock halign-left valign-top">How this step solves it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Admission enforcement can be turned off on the cluster, or the secured cluster services removed</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The RHACM baseline policy detects the change and restores the <code>SecuredCluster</code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_what_this_does_not_solve_yet"><a class="anchor" href="#_what_this_does_not_solve_yet"></a>What this does NOT solve (yet)</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 40%;">
+<col style="width: 60%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Remaining problem</th>
+<th class="tableblock halign-left valign-top">Addressed in</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A new managed cluster also needs the RHACS operator and an init bundle before this policy can create its <code>SecuredCluster</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="#extend-fleet">Extending this to more clusters</a> (not part of this session)</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Nothing proves that an image came from your build pipeline</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Image signature verification (Step 4), not part of this session</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A short window without enforcement remains while RHACM restores the services</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Restrict who can edit <code>SecuredCluster</code> resources with OpenShift RBAC</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_official_documentation"><a class="anchor" href="#_official_documentation"></a>Official documentation</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_management_for_kubernetes/2.17/html/governance/governance">RHACM governance</a></p>
+</li>
+<li>
+<p><a href="https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.9/html/installing/install-secured-cluster-config-options-ocp">Secured cluster configuration options (Operator)</a></p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_alternatives_considered"><a class="anchor" href="#_alternatives_considered"></a>Alternatives considered</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 66.6667%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Approach</th>
+<th class="tableblock halign-left valign-top">Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">RHACM configuration policy on the <code>SecuredCluster</code> (this step)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Reports compliance per cluster and fixes drift. Uses the placement model RHACM already uses for the fleet.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argo CD Application for the <code>SecuredCluster</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Also fixes drift with self-heal. Has no compliance reporting per cluster and no standard mapping to controls such as NIST CM-2.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">OpenShift RBAC only</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Limits who can change the resource, which you want anyway. Does nothing when someone with access makes the change.</p></td>
+</tr>
+</tbody>
+</table>
+<hr>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_reset"><a class="anchor" href="#_reset"></a>Reset</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This returns the cluster to the state at the end of Step 3. The test workload goes first in case one of the checks let it through. Deleting the policy does not delete the <code>SecuredCluster</code>, because the configuration policy keeps the objects it created. The last command reapplies the Step 0 <code>SecuredCluster</code> so that its other fields match the setup again.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># 1. Test workload (normally rejected)
+oc --context hub delete -f 02-image-compliance/tests/bad-latest.yaml --ignore-not-found
+
+# 2. RHACM policy, placement, and namespace
+oc --context hub delete policy acs-image-enforcement-baseline -n acs-policies --ignore-not-found
+oc --context hub delete -f 05-acs-acm/02-placement.yaml --ignore-not-found
+oc --context hub delete -f 05-acs-acm/01-policy-namespace.yaml --ignore-not-found --wait
+
+# 3. SecuredCluster back to the Step 0 definition
+envsubst &lt; 00-setup/04-secured-cluster.yaml | oc --context hub apply -f -
+oc --context hub wait securedcluster/stackrox-secured-cluster-services -n stackrox \
+  --for=condition=Deployed --timeout=900s</code></pre>
+</div>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="03-policies-as-code.html">Step 3: Policies as Code</a></span>
+</nav>
+</article>
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <a class="rhd-logo" href="https://developers.redhat.com" target="_blank"></div>
+</footer>
+<script src="../_/js/vendor/clipboard.js"></script>
+<script src="../_/js/site.js"></script>
+<script async src="../_/js/vendor/highlight.js"></script>
+  </body>
+</html>

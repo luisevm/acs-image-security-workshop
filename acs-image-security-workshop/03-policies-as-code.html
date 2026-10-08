@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>RHACS Image Security Workshop :: RHACS Image Security Workshop</title>
+    <link rel="canonical" href="https://luisevm.github.io/acs-image-security-workshop/acs-image-security-workshop/03-policies-as-code.html">
+    <link rel="prev" href="02-image-compliance.html">
+    <link rel="next" href="05-acs-acm.html">
+    <meta name="generator" content="Antora 3.0.0">
+    <link rel="stylesheet" href="../_/css/site.css">
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item" href="https://developers.redhat.com" target="_blank"><img src="../_/img/RHDLogo.svg" height="40px" alt="Red Hat Developer Program"></a>
+      <a class="navbar-item" style="font-size: 24px; color: white" href="https://luisevm.github.io/acs-image-security-workshop">RHACS Image Security Workshop</a>
+      <button class="navbar-burger" data-target="topbar-nav">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="https://developers.redhat.com/ebooks/" target="_blank">Books</a>
+        <a class="navbar-item" href="https://developers.redhat.com/cheatsheets/" target="_blank">Cheat Sheets</a>
+        <a class="navbar-item" href="https://developers.redhat.com/events/" target="_blank">Upcoming Events</a>
+        <div class="navbar-item has-dropdown is-hoverable">
+          <a class="navbar-link" href="#">More Tutorials</a>
+          <div class="navbar-dropdown">
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/kubernetes-tutorial/" target="_blank">Kubernetes</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/istio-tutorial/" target="_blank">Istio</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/quarkus-tutorial/" target="_blank">Quarkus</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/knative-tutorial/" target="_blank">Knative</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/tekton-tutorial/" target="_blank">Tekton</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="acs-image-security-workshop" data-version="master">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <h3 class="title"><a href="index.html"></a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <a class="nav-link" href="index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="00-setup.html">Cluster Setup</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#prerequisites">Prerequisites</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#export-variables">Export Workshop Variables</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#login-clusters">Log In to the Cluster</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#install-operators">Install the Operators</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#install-acs">Install ACS Central</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#secure-cluster">Secure the Cluster</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#check-scanner">Check the Scanner</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="01-inventory-cve.html">Step 1: Inventory and CVE Posture</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#deploy-workloads">Deploy Two Workloads</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#inventory">List What Is Running</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#explore-portal">Explore CVEs in the Portal</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#roxctl-scan">Scan from the CLI</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#apply-policy">Apply the CVE Policy</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#violations">Review the Violations</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#image-check">Run a Build-Time Check</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="02-image-compliance.html">Step 2: Image Compliance</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#alert-sink">Set Up an Alert Receiver</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#apply-inform">Apply the Policies in Inform Mode</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#preflight">Check a Manifest Before Deploying</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#inform-alert">Deploy and Get Alerted</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#enforce">Switch to Enforce</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#block-creates">Try Non-Compliant Creates</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#block-updates">Try Updates and Scaling</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#ci-gate">Fail the Build-Time Check</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-image-compliance.html#break-glass">Break-Glass Bypass</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item is-current-page" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="03-policies-as-code.html">Step 3: Policies as Code</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#fork">Check Your Fork</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#argocd-rbac">Grant Argo CD Access</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#create-app">Hand the Policies to Argo CD</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#git-change">Change a Policy in Git</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#self-heal">Watch Argo CD Undo a Manual Change</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#portal-drift">Try to Edit in the Portal</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#git-delete">Delete and Restore Through Git</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="05-acs-acm.html">Step 5: ACS and ACM</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="05-acs-acm.html#check-hub">Check the ACM Hub</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="05-acs-acm.html#placement">Select the Clusters</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="05-acs-acm.html#baseline-policy">Apply the ACS Baseline Policy</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="05-acs-acm.html#drift-enforcement">Turn Enforcement Off by Hand</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="05-acs-acm.html#recreate">Delete the Secured Cluster</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="index.html">RHACS Image Security Workshop</a></li>
+    <li><a href="03-policies-as-code.html">Step 3: Policies as Code</a></li>
+  </ul>
+</nav>
+  <div class="edit-this-page"><a href="https://github.com/luisevm/acs-image-security-workshop/edit/main/documentation/modules/ROOT/pages/03-policies-as-code.adoc">Edit this Page</a></div>
+  </div>
+  <div class="content">
+<article class="doc">
+<h1 class="page">RHACS Image Security Workshop</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>At the end of Step 2 the four policies are custom resources that you applied by hand. Anyone with access to the <code>stackrox</code> namespace or the ACS portal can change them, and nothing records why. In this step OpenShift GitOps (Argo CD) takes over the policies from the <code>03-policies-as-code/policies/</code> folder of your fork. You change a policy with a Git commit, watch Argo CD undo a manual change on the cluster, see how the ACS portal treats a policy it does not own, and delete and restore a policy through Git.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_prerequisites"><a class="anchor" href="#_prerequisites"></a>Prerequisites</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><a href="02-image-compliance.html" class="xref page">Step 2</a> completed, with the four policies in enforce mode</p>
+</li>
+<li>
+<p>OpenShift GitOps installed in <a href="00-setup.html#install-operators" class="xref page">Cluster Setup</a></p>
+</li>
+<li>
+<p>A local clone of your fork, with permission to push to the branch in <code>GIT_REVISION</code></p>
+</li>
+<li>
+<p><code>source myenv.sh</code> run in your current shell</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_how_it_works"><a class="anchor" href="#_how_it_works"></a>How it works</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Two controllers work in sequence. Argo CD keeps the <code>SecurityPolicy</code> custom resources in <code>stackrox</code> equal to the files in Git. The RHACS <code>config-controller</code> copies each custom resource into Central and marks the policy in the portal as managed externally. A change that starts in Git reaches Central through both controllers. A manual change to a custom resource is reverted by Argo CD self-heal, and a change made in the portal is overwritten by <code>config-controller</code>.</p>
+</div>
+<div class="paragraph">
+<p>The files in <code>03-policies-as-code/policies/</code> carry the same names and content as <code>02-image-compliance/enforce/</code>, so Argo CD adopts the existing resources without changing how ACS behaves.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_steps_to_apply"><a class="anchor" href="#_steps_to_apply"></a>Steps to apply</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="fork"><a class="anchor" href="#fork"></a>1. Check your fork</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Confirm that <code>GIT_REPO_URL</code> is your fork, that Argo CD can read it, and that you can push to it.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> Argo CD reads the policies from this repository, and every change in this step is a push.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">echo "${GIT_REPO_URL} ${GIT_REVISION}"
+git ls-remote "${GIT_REPO_URL}" "${GIT_REVISION}"
+git push --dry-run origin "${GIT_REVISION}"</code></pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+The workshop assumes a public fork. For a private repository, add its credentials to Argo CD as a repository secret before the next sub-steps.
+</td>
+</tr>
+</table>
+</div>
+<details>
+<summary class="title">Verify: The branch exists and a push would work</summary>
+<div class="content">
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+</div>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="argocd-rbac"><a class="anchor" href="#argocd-rbac"></a>2. Grant Argo CD access to the policies</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Create a Role in <code>stackrox</code> that lets the Argo CD application controller manage <code>SecurityPolicy</code> resources, and nothing else in that namespace.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> The default Argo CD instance cannot write to <code>stackrox</code> until you grant it access, and the Role keeps that access as narrow as the task.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub apply -f 03-policies-as-code/01-argocd-rbac.yaml</code></pre>
+</div>
+</div>
+<details>
+<summary class="title">Verify: Argo CD can create policies and cannot read secrets</summary>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">SA=system:serviceaccount:openshift-gitops:openshift-gitops-argocd-application-controller
+oc --context hub auth can-i create securitypolicies.config.stackrox.io -n stackrox --as="${SA}"
+oc --context hub auth can-i get secrets -n stackrox --as="${SA}"</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">yes
+no</code></pre>
+</div>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="create-app"><a class="anchor" href="#create-app"></a>3. Hand the policies to Argo CD</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Create an Argo CD Application that syncs <code>03-policies-as-code/policies/</code> from your fork into <code>stackrox</code>.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> From now on the files in Git decide what the policies look like.</p>
+</div>
+<div class="paragraph">
+<p>The Application manifest uses <code>${GIT_REPO_URL}</code> and <code>${GIT_REVISION}</code>, so it goes through <code>envsubst</code>:</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">envsubst &lt; 03-policies-as-code/02-application.yaml | oc --context hub apply -f -</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The Application has automated sync with <code>prune</code> and <code>selfHeal</code> turned on. It has no resources finalizer, so deleting the Application later leaves the policies in place.</p>
+</div>
+<details>
+<summary class="title">Verify: The Application is synced and manages the four policies</summary>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub get application acs-image-policies -n openshift-gitops \
+  -o jsonpath='{.status.sync.status} {.status.health.status}{"\n"}{.status.resources[*].name}{"\n"}'</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+</div>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="git-change"><a class="anchor" href="#git-change"></a>4. Change a policy in Git</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Raise the image-age limit from 365 to 3650 days with a commit, then ask Argo CD to refresh.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> A commit can be reviewed and reverted, and Git records who changed the rule.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">F=03-policies-as-code/policies/03-policy-image-age.yaml
+sed -i.bak -e 's/"365"/"3650"/' -e 's/ 365 days/ 3650 days/g' "$F" &amp;&amp; rm -f "$F.bak"
+git diff --stat
+git commit -am "Raise the workshop image age limit to 3650 days"
+git push origin "${GIT_REVISION}"
+oc --context hub annotate application acs-image-policies -n openshift-gitops \
+  argocd.argoproj.io/refresh=hard --overwrite</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The <code>sed</code> patterns only match the original values, so running the command twice does not change the file again. Argo CD also polls Git on its own. The <code>refresh</code> annotation only saves you the wait.</p>
+</div>
+<div class="paragraph">
+<p>The legacy image is older than 365 days and younger than 3650 days, so its age violation resolves.</p>
+</div>
+<details>
+<summary class="title">Verify: The new value reached the cluster and Central</summary>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub get securitypolicy workshop-image-age -n stackrox \
+  -o jsonpath='{.spec.policySections[0].policyGroups[0].values[0].value}{"\n"}'
+curl -skG -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/alerts" \
+  --data-urlencode "query=Namespace:acs-image-demo" \
+  | jq -r '.alerts[] | select(.policy.name | startswith("Workshop - Image older")) | [.policy.name, .deployment.name, .state] | @tsv'</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+</div>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="self-heal"><a class="anchor" href="#self-heal"></a>5. Watch Argo CD undo a manual change</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Lower the severity of the latest-tag policy directly on the cluster and watch it come back.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> A change that bypasses Git does not last, so the policy in Git is the policy that runs.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub patch securitypolicy workshop-latest-tag -n stackrox \
+  --type merge -p '{"spec":{"severity":"LOW_SEVERITY"}}'
+for i in $(seq 1 12); do
+  oc --context hub get securitypolicy workshop-latest-tag -n stackrox -o jsonpath='{.spec.severity}{"\n"}'
+  sleep 5
+done</code></pre>
+</div>
+</div>
+<details>
+<summary class="title">Verify: The severity returns to MEDIUM_SEVERITY</summary>
+<div class="content">
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+</div>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="portal-drift"><a class="anchor" href="#portal-drift"></a>6. Try to edit the policy in the ACS portal</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Open a workshop policy in the ACS portal and try to edit it.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> Participants who use the portal need to know that a policy managed as code cannot be changed there for good.</p>
+</div>
+<div class="paragraph">
+<p>In the ACS portal, go to <strong>Platform Configuration &gt; Policy Management</strong>, search for <code>Workshop</code>, and open <strong>Workshop - Image uses the latest tag</strong>. The policy is marked as managed externally. Try <strong>Actions &gt; Edit policy</strong> and read the message.</p>
+</div>
+<details>
+<summary class="title">Verify: The portal shows the policy as externally managed</summary>
+<div class="content">
+<div class="paragraph">
+<p>TODO-CAPTURE: describe the badge and the edit behavior seen during the validation run</p>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="git-delete"><a class="anchor" href="#git-delete"></a>7. Delete and restore a policy through Git</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Remove the registry policy file in Git, check that the policy disappears from the cluster and from Central, then revert the commit.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> Deleting a rule is also a reviewed change, and <code>git revert</code> brings it back exactly as it was.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">git rm 03-policies-as-code/policies/02-policy-trusted-registries.yaml
+git commit -m "Remove the workshop registry policy"
+git push origin "${GIT_REVISION}"
+oc --context hub annotate application acs-image-policies -n openshift-gitops \
+  argocd.argoproj.io/refresh=hard --overwrite</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Check that the custom resource and the Central policy are gone:</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub get securitypolicy workshop-trusted-registries -n stackrox
+curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/policies" \
+  | jq -r '.policies[].name' | grep '^Workshop - '</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Restore it:</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">git revert --no-edit HEAD
+git push origin "${GIT_REVISION}"
+oc --context hub annotate application acs-image-policies -n openshift-gitops \
+  argocd.argoproj.io/refresh=hard --overwrite</code></pre>
+</div>
+</div>
+<details>
+<summary class="title">Verify: The registry policy is back in Central</summary>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub get securitypolicy workshop-trusted-registries -n stackrox \
+  -o jsonpath='{.status.conditions[?(@.type=="AcceptedByCentral")].status}{"\n"}'</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">True</code></pre>
+</div>
+</div>
+</div>
+</details>
+<hr>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_what_this_solves"><a class="anchor" href="#_what_this_solves"></a>What this solves</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 40%;">
+<col style="width: 60%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Problem from Step 2</th>
+<th class="tableblock halign-left valign-top">How this step solves it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Policies are applied by hand, with no review and no record of who changed what</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Every change is a Git commit that Argo CD applies</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Someone can edit or delete a policy and nothing puts it back</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argo CD self-heal reverts changes to the custom resources, and <code>config-controller</code> overwrites portal edits</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_what_this_does_not_solve_yet"><a class="anchor" href="#_what_this_does_not_solve_yet"></a>What this does NOT solve (yet)</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 40%;">
+<col style="width: 60%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Remaining problem</th>
+<th class="tableblock halign-left valign-top">Addressed in</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Admission enforcement can be turned off on the cluster, or the secured cluster services removed, and the policies stop blocking anything</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="05-acs-acm.html" class="xref page">Step 5: ACS and ACM</a></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_official_documentation"><a class="anchor" href="#_official_documentation"></a>Official documentation</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.11/html/configuring/using-rhacs-with-gitops">Using RHACS with GitOps</a></p>
+</li>
+<li>
+<p><a href="https://docs.redhat.com/en/documentation/red_hat_openshift_gitops/latest/html/installing_gitops/installing-openshift-gitops">Installing Red Hat OpenShift GitOps</a></p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_alternatives_considered"><a class="anchor" href="#_alternatives_considered"></a>Alternatives considered</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 66.6667%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Approach</th>
+<th class="tableblock halign-left valign-top">Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>SecurityPolicy</code> custom resources synced by OpenShift GitOps (this step)</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Native to RHACS since policy as code became generally available in 4.8. Works with any Git server Argo CD can reach.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">RHACM policy that creates the <code>SecurityPolicy</code> resources on the hub</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Possible, since Central reads the custom resources from its own namespace. Adds a second tool for the same job when Argo CD already runs.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Scripts that call the ACS policy API from a pipeline</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Works on versions without policy as code. You write and maintain the drift detection yourself.</p></td>
+</tr>
+</tbody>
+</table>
+<hr>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_reset"><a class="anchor" href="#_reset"></a>Reset</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>This returns the cluster to the state at the end of Step 2 and puts the image-age file in your fork back to 365 days, so the step works again on the next run. The Application goes first so that nothing reconciles while you restore the files.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># 1. Stop Argo CD from managing the policies (no finalizer, so the policies stay)
+oc --context hub delete application acs-image-policies -n openshift-gitops --ignore-not-found --wait
+
+# 2. Remove the Argo CD permissions
+oc --context hub delete -f 03-policies-as-code/01-argocd-rbac.yaml --ignore-not-found
+
+# 3. Restore the Git files in your fork
+F=03-policies-as-code/policies/03-policy-image-age.yaml
+sed -i.bak -e 's/"3650"/"365"/' -e 's/ 3650 days/ 365 days/g' "$F" &amp;&amp; rm -f "$F.bak"
+git ls-files --error-unmatch 03-policies-as-code/policies/02-policy-trusted-registries.yaml &gt;/dev/null 2&gt;&amp;1 \
+  || git checkout HEAD~1 -- 03-policies-as-code/policies/02-policy-trusted-registries.yaml
+git add 03-policies-as-code/policies/
+git diff --cached --quiet || { git commit -m "Reset workshop policies to the Step 2 state"; git push origin "${GIT_REVISION}"; }
+
+# 4. Put the cluster policies back to the Step 2 enforced state
+oc --context hub apply -f 02-image-compliance/enforce/</code></pre>
+</div>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="02-image-compliance.html">Step 2: Image Compliance</a></span>
+  <span class="next"><a href="05-acs-acm.html">Step 5: ACS and ACM</a></span>
+</nav>
+</article>
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <a class="rhd-logo" href="https://developers.redhat.com" target="_blank"></div>
+</footer>
+<script src="../_/js/vendor/clipboard.js"></script>
+<script src="../_/js/site.js"></script>
+<script async src="../_/js/vendor/highlight.js"></script>
+  </body>
+</html>
