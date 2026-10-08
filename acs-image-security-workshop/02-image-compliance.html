@@ -243,6 +243,9 @@
 <div class="paragraph">
 <p>A policy without enforcement actions only creates violations and notifications. Adding enforcement actions makes ACS act: <code>FAIL_BUILD_ENFORCEMENT</code> makes <code>roxctl image check</code> exit with an error, the <code>FAIL_DEPLOYMENT_*</code> actions make the admission controller reject the request, and <code>SCALE_TO_ZERO_ENFORCEMENT</code> lets Sensor scale a violating deployment to zero replicas if it gets past admission, for example after a webhook timeout.</p>
 </div>
+<div class="paragraph">
+<p>Run <code>oc --context hub explain securitypolicy.spec.enforcementActions</code> to list every action the <code>SecurityPolicy</code> resource accepts.</p>
+</div>
 </div>
 </div>
 <div class="sect1">
@@ -250,6 +253,9 @@
 <div class="sectionbody">
 <div class="sect2">
 <h3 id="alert-sink"><a class="anchor" href="#alert-sink"></a>1. Set up an alert receiver</h3>
+<div class="paragraph">
+<p><span class="icon"><i class="fa fa-clock"></i></span> ~30 seconds (most of it is the pull of the Python image)</p>
+</div>
 <div class="paragraph">
 <p><strong>What:</strong> Deploy a small webhook receiver in <code>acs-alert-sink</code> and register it in ACS as a generic webhook notifier named <code>workshop-alert-sink</code>.</p>
 </div>
@@ -274,7 +280,7 @@ oc --context hub wait deploy/alert-sink -n acs-alert-sink \
 </div>
 </div>
 <details>
-<summary class="title">Verify: The notifier exists</summary>
+<summary class="title">Verify: The notifier exists and Central can reach the receiver</summary>
 <div class="content">
 <div class="listingblock console-input">
 <div class="content">
@@ -284,7 +290,26 @@ oc --context hub wait deploy/alert-sink -n acs-alert-sink \
 </div>
 <div class="listingblock console-output">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">workshop-alert-sink	generic</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Send a test message through the notifier and read it in the receiver&#8217;s log:</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">NOTIFIER_ID=$(curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/notifiers" \
+  | jq -r '.notifiers[] | select(.name=="workshop-alert-sink") | .id')
+envsubst &lt; 02-image-compliance/02-notifier.json | jq --arg id "${NOTIFIER_ID}" '. + {id: $id}' \
+  | curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" -H "Content-Type: application/json" \
+    -X POST "https://${ACS_CENTRAL_ROUTE}/v1/notifiers/test" -d @-
+oc --context hub logs deploy/alert-sink -n acs-alert-sink --tail=1</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">{}
+ALERT policy='This is a test message created to test integration with StackRox.' deployment=None namespace=None stage='DEPLOY'</code></pre>
 </div>
 </div>
 </div>
@@ -340,6 +365,9 @@ oc --context hub wait deploy/alert-sink -n acs-alert-sink \
 </tr>
 </tbody>
 </table>
+<div class="paragraph">
+<p>The <code>Image Age</code> value is a number of days. The UBI 8.4 image was built in October 2021. The current UBI 9 minimal image was two days old on the validation date, so only <code>legacy-app</code> matches.</p>
+</div>
 <details>
 <summary class="title">Verify: Central accepted all four policies</summary>
 <div class="content">
@@ -351,7 +379,11 @@ oc --context hub wait deploy/alert-sink -n acs-alert-sink \
 </div>
 <div class="listingblock console-output">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">NAME                              ACCEPTED
+workshop-fixable-important-cves   True
+workshop-image-age                True
+workshop-latest-tag               True
+workshop-trusted-registries       True</code></pre>
 </div>
 </div>
 </div>
@@ -361,28 +393,44 @@ oc --context hub wait deploy/alert-sink -n acs-alert-sink \
 <div class="sect2">
 <h3 id="preflight"><a class="anchor" href="#preflight"></a>3. Check a manifest before deploying it</h3>
 <div class="paragraph">
+<p><span class="icon"><i class="fa fa-clock"></i></span> ~15 seconds (the check scans the image in the manifest first)</p>
+</div>
+<div class="paragraph">
 <p><strong>What:</strong> Run <code>roxctl deployment check</code> on a manifest that uses the <code>latest</code> tag.</p>
 </div>
 <div class="paragraph">
 <p><strong>Why:</strong> Developers and pipelines can see a policy result before they touch the cluster.</p>
 </div>
+<div class="paragraph">
+<p>The <code>--cluster</code> flag makes the check use the policy scopes and namespace context of your cluster, so the workshop policies scoped to <code>acs-image-demo</code> apply:</p>
+</div>
 <div class="listingblock console-input">
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">roxctl --insecure-skip-tls-verify deployment check --cluster "${ACS_CLUSTER_NAME}" \
-  -f 02-image-compliance/tests/bad-latest.yaml --output table
-echo "exit code: $?"</code></pre>
+  -f 02-image-compliance/tests/bad-latest.yaml --output json &gt; /tmp/deployment-check.json
+echo "exit code: $?"
+jq -r '.results[].violatedPolicies[] | [.name, .severity, .failingCheck] | @tsv' /tmp/deployment-check.json</code></pre>
 </div>
 </div>
 <details>
 <summary class="title">Verify: The latest-tag policy is listed</summary>
 <div class="content">
 <div class="paragraph">
-<p>The output lists <strong>Workshop - Image uses the latest tag</strong>. The policies are still in inform mode, so the check does not mark the deployment as blocked.</p>
+<p>The output lists <strong>Workshop - Image uses the latest tag</strong>. The policies are still in inform mode, so <code>failingCheck</code> is <code>false</code> and the exit code is <code>0</code>. Built-in policies, including <strong>Latest tag</strong>, show up as well.</p>
 </div>
 <div class="listingblock console-output">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">exit code: 0
+Container with privilege escalation allowed	MEDIUM	false
+Pod Service Account Token Automatically Mounted	MEDIUM	false
+Workshop - Image uses the latest tag	MEDIUM	false
+Docker CIS 4.1: Ensure That a User for the Container Has Been Created	LOW	false
+Latest tag	LOW	false
+Red Hat Package Manager in Image	LOW	false</code></pre>
 </div>
+</div>
+<div class="paragraph">
+<p><code>roxctl</code> also prints a <code>WARN</code> line about deployments without a namespace. The test manifest sets <code>namespace: acs-image-demo</code>, so you can ignore it.</p>
 </div>
 </div>
 </details>
@@ -390,6 +438,9 @@ echo "exit code: $?"</code></pre>
 </div>
 <div class="sect2">
 <h3 id="inform-alert"><a class="anchor" href="#inform-alert"></a>4. Deploy a workload and get alerted</h3>
+<div class="paragraph">
+<p><span class="icon"><i class="fa fa-clock"></i></span> ~15 seconds (deployment available after 9s, alert in the receiver&#8217;s log after 14s)</p>
+</div>
 <div class="paragraph">
 <p><strong>What:</strong> Deploy the <code>latest</code>-tag workload and read the alert in the receiver&#8217;s log.</p>
 </div>
@@ -443,6 +494,9 @@ oc --context hub get deploy -n acs-image-demo</code></pre>
 <div class="paragraph">
 <p>The enforced files differ from the inform files only by the <code>enforcementActions</code> list. Compare them with <code>diff 02-image-compliance/policies/01-policy-latest-tag.yaml 02-image-compliance/enforce/01-policy-latest-tag.yaml</code>.</p>
 </div>
+<div class="paragraph">
+<p>The admission controller started to reject new <code>latest</code>-tag deployments about five seconds after the apply on the validation cluster.</p>
+</div>
 <div class="admonitionblock warning">
 <table>
 <tr>
@@ -450,7 +504,7 @@ oc --context hub get deploy -n acs-image-demo</code></pre>
 <i class="fa icon-warning" title="Warning"></i>
 </td>
 <td class="content">
-Turning on enforcement does not remove workloads that already run. Whether ACS scales an existing violating deployment to zero depends on its enforcement actions. Check the <code>READY</code> column above before you go on.
+Turning on enforcement does not touch workloads that already run. <code>legacy-app</code> and <code>bad-latest</code> stayed at <code>1/1</code> after the switch, although the policies include <code>SCALE_TO_ZERO_ENFORCEMENT</code>. Their existing violations stay active, and enforcement applies the next time someone creates, updates, or scales them. Review the inform-mode violations before you enforce, and fix or remove the workloads that would be blocked.
 </td>
 </tr>
 </table>
@@ -466,7 +520,11 @@ Turning on enforcement does not remove workloads that already run. Whether ACS s
 </div>
 <div class="listingblock console-output">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">NAME                              ACTIONS
+workshop-fixable-important-cves   [FAIL_BUILD_ENFORCEMENT FAIL_DEPLOYMENT_CREATE_ENFORCEMENT FAIL_DEPLOYMENT_UPDATE_ENFORCEMENT SCALE_TO_ZERO_ENFORCEMENT]
+workshop-image-age                [FAIL_BUILD_ENFORCEMENT FAIL_DEPLOYMENT_CREATE_ENFORCEMENT FAIL_DEPLOYMENT_UPDATE_ENFORCEMENT SCALE_TO_ZERO_ENFORCEMENT]
+workshop-latest-tag               [FAIL_BUILD_ENFORCEMENT FAIL_DEPLOYMENT_CREATE_ENFORCEMENT FAIL_DEPLOYMENT_UPDATE_ENFORCEMENT SCALE_TO_ZERO_ENFORCEMENT]
+workshop-trusted-registries       [FAIL_BUILD_ENFORCEMENT FAIL_DEPLOYMENT_CREATE_ENFORCEMENT FAIL_DEPLOYMENT_UPDATE_ENFORCEMENT SCALE_TO_ZERO_ENFORCEMENT]</code></pre>
 </div>
 </div>
 </div>
@@ -489,7 +547,32 @@ oc --context hub apply -f 02-image-compliance/tests/bad-registry.yaml</code></pr
 </div>
 </div>
 <div class="paragraph">
-<p>Both <code>apply</code> commands fail. The error message comes from the ACS webhook and names the violated policy and its remediation text.</p>
+<p>Both <code>apply</code> commands fail. The error message comes from the ACS webhook and names the violated policy and its remediation text. The registry rejection looks like this:</p>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">Error from server (Failed currently enforced policies from RHACS): error when creating "02-image-compliance/tests/bad-registry.yaml": admission webhook "policyeval.stackrox.io" denied the request:
+The attempted operation violated one or more enforced policies, described below:
+
+Policy: Workshop - Image from an unapproved registry
+- Description:
+    ↳ Image is pulled from a registry that is not on the approved list.
+- Rationale:
+    ↳ Images from unvetted registries have no known provenance or security errata.
+- Remediation:
+    ↳ Use images from registry.access.redhat.com, registry.redhat.io, quay.io, or the
+      internal OpenShift registry.
+- Violations:
+    - Container 'app' has image with registry 'docker.io'
+
+
+2 additional policies depend on image enrichment results and will be evaluated only after the above violations are addressed.
+
+In case of emergency, add the annotation {"admission.stackrox.io/break-glass": "ticket-1234"} to your deployment with an updated ticket number</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The <code>bad-latest</code> rejection has the same shape, with the policy <strong>Workshop - Image uses the latest tag</strong> and the violation <code>Container 'app' has image with tag 'latest'</code>.</p>
 </div>
 <div class="admonitionblock note">
 <table>
@@ -498,10 +581,13 @@ oc --context hub apply -f 02-image-compliance/tests/bad-registry.yaml</code></pr
 <i class="fa icon-note" title="Note"></i>
 </td>
 <td class="content">
-The registry check happens before any image pull, so Docker Hub pull limits do not matter here.
+The registry and tag checks only read the image reference, so they run before any image pull or scan, and Docker Hub pull limits do not matter here. The two policies that need scan data (CVEs and image age) wait until those violations are fixed, as the last lines of the message say.
 </td>
 </tr>
 </table>
+</div>
+<div class="paragraph">
+<p>Each rejected request is also recorded as a violation with the state <strong>Attempted</strong> (the <strong>Attempted</strong> tab on the <strong>Violations</strong> page) and sent to the notifier.</p>
 </div>
 <details>
 <summary class="title">Verify: Neither workload exists</summary>
@@ -513,7 +599,9 @@ The registry check happens before any image pull, so Docker Hub pull limits do n
 </div>
 <div class="listingblock console-output">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run, and paste the two webhook error messages above</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">NAME          READY   UP-TO-DATE   AVAILABLE   AGE
+current-app   1/1     1            1           11m
+legacy-app    1/1     1            1           11m</code></pre>
 </div>
 </div>
 </div>
@@ -542,6 +630,27 @@ oc --context hub rollout restart deploy/current-app -n acs-image-demo
 oc --context hub rollout status deploy/current-app -n acs-image-demo --timeout=180s</code></pre>
 </div>
 </div>
+<div class="paragraph">
+<p>The scale request is rejected because the image of <code>legacy-app</code> breaks the two policies that use scan data. The message lists each fixable CVE with the version that fixes it (trimmed):</p>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">Error from server (Failed currently enforced policies from RHACS): admission webhook "policyeval.stackrox.io" denied the request:
+The attempted operation violated one or more enforced policies, described below:
+
+Policy: Workshop - Image older than 365 days
+...
+- Violations:
+    - Container 'app' has image created at 2021-10-26 13:03:40 (UTC)
+
+Policy: Workshop - Fixable CVEs of severity Important or higher
+...
+- Violations:
+    - Fixable CVE-2018-25032 (CVSS 8.2) (severity Important) found in component 'zlib' (version 1.2.11-17.el8) in container 'app', resolved by version 0:1.2.11-18.el8_5
+    - Fixable CVE-2022-0778 (CVSS 7.5) (severity Important) found in component 'openssl-libs' (version 1:1.1.1g-15.el8_3) in container 'app', resolved by version 1:1.1.1k-6.el8_5
+...</code></pre>
+</div>
+</div>
 <details>
 <summary class="title">Verify: Only the compliant restart went through</summary>
 <div class="content">
@@ -553,7 +662,9 @@ oc --context hub rollout status deploy/current-app -n acs-image-demo --timeout=1
 </div>
 <div class="listingblock console-output">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">NAME          REPLICAS   IMAGE
+current-app   1          registry.access.redhat.com/ubi9/ubi-minimal@sha256:68b92732accbffdd8e2491b4c29976634ed92459f5779dac2aad670c967337c7
+legacy-app    1          registry.access.redhat.com/ubi8/ubi:8.4</code></pre>
 </div>
 </div>
 </div>
@@ -570,16 +681,28 @@ oc --context hub rollout status deploy/current-app -n acs-image-demo --timeout=1
 </div>
 <div class="listingblock console-input">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">roxctl --insecure-skip-tls-verify image check --image registry.access.redhat.com/ubi8/ubi:8.4 --output table
-echo "exit code: $?"</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">roxctl --insecure-skip-tls-verify image check --image registry.access.redhat.com/ubi8/ubi:8.4 \
+  --output json &gt; /tmp/image-check.json
+echo "exit code: $?"
+jq -r '.results[].violatedPolicies[] | [.name, .severity, .failingCheck] | @tsv' /tmp/image-check.json</code></pre>
 </div>
 </div>
 <details>
-<summary class="title">Verify: The exit code is not 0</summary>
+<summary class="title">Verify: The workshop policies now fail the check</summary>
 <div class="content">
+<div class="paragraph">
+<p>In Step 1 only the built-in policy had <code>failingCheck</code> set to <code>true</code>. Now the two workshop policies that the legacy image violates have it as well:</p>
+</div>
 <div class="listingblock console-output">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">ERROR:	checking image failed: failed policies found: 3 policies violated that are failing the check
+exit code: 1
+Fixable Severity at least Important	HIGH	true
+Workshop - Fixable CVEs of severity Important or higher	HIGH	true
+90-Day Image Age	LOW	false
+Docker CIS 4.1: Ensure That a User for the Container Has Been Created	LOW	false
+Red Hat Package Manager in Image	LOW	false
+Workshop - Image older than 365 days	LOW	true</code></pre>
 </div>
 </div>
 </div>
@@ -610,6 +733,9 @@ oc --context hub get deploy breakglass-latest -n acs-image-demo</code></pre>
   | jq -r '.alerts[] | select(.deployment.name == "breakglass-latest") | [.policy.name, .state] | @tsv'</code></pre>
 </div>
 </div>
+<div class="paragraph">
+<p>The built-in policy <strong>Emergency Deployment Annotation</strong> is enabled by default and records every use of the annotation. The workshop latest-tag policy also reports the deployment, and its alert lists <code>SCALE_TO_ZERO_ENFORCEMENT</code>. On the validation cluster, <code>breakglass-latest</code> was not scaled down and still ran at <code>1/1</code> 90 seconds later.</p>
+</div>
 <details>
 <summary class="title">Verify: The deployment was admitted and the bypass is on record</summary>
 <div class="content">
@@ -618,7 +744,13 @@ oc --context hub get deploy breakglass-latest -n acs-image-demo</code></pre>
 </div>
 <div class="listingblock console-output">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">Emergency Deployment Annotation	ACTIVE
+Latest tag	ACTIVE
+Workshop - Image uses the latest tag	ACTIVE
+Red Hat Package Manager in Image	ACTIVE
+Container with privilege escalation allowed	ACTIVE
+Docker CIS 4.1: Ensure That a User for the Container Has Been Created	ACTIVE
+Pod Service Account Token Automatically Mounted	ACTIVE</code></pre>
 </div>
 </div>
 </div>

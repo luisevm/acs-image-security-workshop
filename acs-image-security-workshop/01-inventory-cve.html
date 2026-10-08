@@ -251,6 +251,9 @@
 <div class="sect2">
 <h3 id="deploy-workloads"><a class="anchor" href="#deploy-workloads"></a>1. Deploy two workloads</h3>
 <div class="paragraph">
+<p><span class="icon"><i class="fa fa-clock"></i></span> ~15 seconds (both images are pulled on first use)</p>
+</div>
+<div class="paragraph">
 <p><strong>What:</strong> Create the <code>acs-image-demo</code> namespace with a legacy workload and a current workload.</p>
 </div>
 <div class="paragraph">
@@ -278,7 +281,9 @@ oc --context hub wait deploy --all -n acs-image-demo \
 </div>
 <div class="listingblock console-output">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">NAME          READY   UP-TO-DATE   AVAILABLE   AGE
+current-app   1/1     1            1           11s
+legacy-app    1/1     1            1           12s</code></pre>
 </div>
 </div>
 </div>
@@ -312,9 +317,23 @@ oc --context hub wait deploy --all -n acs-image-demo \
 <details>
 <summary class="title">Verify: ACS lists both images</summary>
 <div class="content">
+<div class="paragraph">
+<p>The <code>oc</code> command prints the tag <code>8.4</code> for the legacy pod and a digest for both image IDs (trimmed):</p>
+</div>
 <div class="listingblock console-output">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">POD                            IMAGE                                                       IMAGE_ID
+current-app-5cb59559dc-xs76p   registry.access.redhat.com/ubi9/ubi-minimal@sha256:68b9...  registry.access.redhat.com/ubi9/ubi-minimal@sha256:68b9...
+legacy-app-5964d57774-9c485    registry.access.redhat.com/ubi8/ubi:8.4                     registry.access.redhat.com/ubi8/ubi@sha256:53d3a083...</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The ACS query returns the same two images, each with its digest as the ID:</p>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">registry.access.redhat.com/ubi8/ubi:8.4	sha256:53d3a0837cf04ba4c687ddb39b487dc86efdbc14bd528778a7fa522637b1a3a0
+registry.access.redhat.com/ubi9/ubi-minimal@sha256:68b92732accbffdd8e2491b4c29976634ed92459f5779dac2aad670c967337c7	sha256:68b92732accbffdd8e2491b4c29976634ed92459f5779dac2aad670c967337c7</code></pre>
 </div>
 </div>
 <div class="paragraph">
@@ -333,19 +352,34 @@ oc --context hub wait deploy --all -n acs-image-demo \
 <p><strong>Why:</strong> The full CVE list of an old image is long. The fixable, high-severity subset is the list an application team can act on.</p>
 </div>
 <div class="paragraph">
-<p>In the ACS portal, go to <strong>Vulnerability Management &gt; Results</strong> and open the <strong>User Workloads</strong> tab. Add the filter <strong>Namespace</strong> <code>acs-image-demo</code>, then the filters <strong>CVE status</strong> <code>Fixable</code> and <strong>Severity</strong> <code>Critical</code> and <code>Important</code>. Switch between the CVE, Image, and Deployment views to see the same findings grouped three ways.</p>
+<p>In the ACS portal, go to <strong>Vulnerability Management &gt; Results</strong>. The page <strong>User workload vulnerabilities</strong> opens on the <strong>User Workloads</strong> tab, with the default filters <strong>CVE severity</strong> <code>Critical</code> and <code>Important</code> and <strong>CVE status</strong> <code>Fixable</code> already set. In the filter bar, select the entity <strong>Namespace</strong>, keep the attribute <strong>Name</strong>, type <code>acs-image-demo</code>, and press <kbd>Enter</kbd>. The toggle above the table switches between the CVE, Image, and Deployment views of the same findings.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="_images/01-workload-cves.png" alt="User workload vulnerabilities page filtered to namespace acs-image-demo" width="showing 71 CVEs in one image" height="ubi8/ubi:8.4">
+</div>
+<div class="title">Figure 1. Vulnerability Management &gt; Results - fixable Critical and Important CVEs in acs-image-demo, Image view</div>
 </div>
 <div class="paragraph">
-<p>Open one CVE and look at the <strong>Fixed by</strong> column. It names the package version that removes the CVE.</p>
+<p>Switch to the CVE view, open one CVE, and expand the image row. The <strong>CVE fixed in</strong> column names the package version that removes the CVE, and <strong>Advisory</strong> names the Red Hat erratum that ships it.</p>
 </div>
 <details>
 <summary class="title">Verify: Only the legacy image has fixable Critical or Important CVEs</summary>
 <div class="content">
 <div class="paragraph">
-<p>The filtered Image view lists <code>registry.access.redhat.com/ubi8/ubi:8.4</code>.</p>
+<p>The filtered view lists 71 CVEs, 1 image (<code>ubi8/ubi:8.4</code> in <code>registry.access.redhat.com</code>), and 1 deployment. For the CVE <code>CVE-2018-25032</code>, the expanded row showed the component <code>zlib</code> at version <code>1.2.11-17.el8</code>, fixed in <code>0:1.2.11-18.el8_5</code> by <code>RHSA-2022:1642</code>.</p>
 </div>
-<div class="paragraph">
-<p>TODO-CAPTURE: describe what the filtered view showed during the validation run</p>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+The current UBI 9 minimal image is not in the list, although it is not free of CVEs. On the validation date it had six Important CVEs and none of them had a fix yet. Unfixed CVEs drop out of a <strong>Fixable</strong> filter, and they do not match the policy you add in sub-step 5.
+</td>
+</tr>
+</table>
 </div>
 </div>
 </details>
@@ -376,10 +410,48 @@ done</code></pre>
 <details>
 <summary class="title">Verify: The legacy image has far more CVEs than the current one</summary>
 <div class="content">
+<div class="paragraph">
+<p>The table starts with a summary line, then one row per CVE. Further right, each row also has the fixed version and the advisory (cut on the right here):</p>
+</div>
 <div class="listingblock console-output">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">Scan results for image: registry.access.redhat.com/ubi8/ubi:8.4
+(TOTAL-COMPONENTS: 53, TOTAL-VULNERABILITIES: 84, LOW: 0, MODERATE: 0, IMPORTANT: 84, CRITICAL: 0)
+
++----------------------------------------+-------------------+-----------------+-----------+------+------------
+|               COMPONENT                |      VERSION      |       CVE       | SEVERITY  | CVSS |
++----------------------------------------+-------------------+-----------------+-----------+------+------------
+|                 brotli                 |    1.0.6-3.el8    |  CVE-2025-6176  | IMPORTANT | 7.5  |
++----------------------------------------+-------------------+-----------------+-----------+------+------------</code></pre>
 </div>
+</div>
+<div class="paragraph">
+<p>The loop prints the severity counts of both images:</p>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">== registry.access.redhat.com/ubi8/ubi:8.4
+{
+  "CRITICAL": 0,
+  "IMPORTANT": 84,
+  "LOW": 286,
+  "MODERATE": 412,
+  "TOTAL-COMPONENTS": 112,
+  "TOTAL-VULNERABILITIES": 782
+}
+== registry.access.redhat.com/ubi9/ubi-minimal@sha256:68b92732accbffdd8e2491b4c29976634ed92459f5779dac2aad670c967337c7
+{
+  "CRITICAL": 0,
+  "IMPORTANT": 6,
+  "LOW": 56,
+  "MODERATE": 68,
+  "TOTAL-COMPONENTS": 36,
+  "TOTAL-VULNERABILITIES": 130
+}</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The numbers change as Red Hat publishes new CVE data.</p>
 </div>
 </div>
 </details>
@@ -440,7 +512,16 @@ done</code></pre>
 <p><strong>Why:</strong> The violation names the workload, the CVEs that matched, and the fix, which is what you hand to the team that owns the image.</p>
 </div>
 <div class="paragraph">
-<p>In the portal, go to <strong>Violations</strong> and filter by <strong>Namespace</strong> <code>acs-image-demo</code>. Open the violation for <code>legacy-app</code> and read the matched CVEs.</p>
+<p>In the portal, go to <strong>Violations</strong>. In the filter bar of <strong>User workload violations</strong>, select the entity <strong>Namespace</strong> and enter <code>acs-image-demo</code>, then select the entity <strong>Policy</strong> and enter <code>Workshop</code>. Open the violation for <code>legacy-app</code> and read the matched CVEs.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="_images/01-violations.png" alt="User workload violations filtered by namespace acs-image-demo and policy name Workshop" width="with one violation for legacy-app">
+</div>
+<div class="title">Figure 2. Violations - the workshop CVE policy flags legacy-app</div>
+</div>
+<div class="paragraph">
+<p>Without the policy filter, the namespace shows several more violations from built-in ACS policies, such as <strong>Fixable Severity at least Important</strong> and <strong>Red Hat Package Manager in Image</strong>.</p>
 </div>
 <div class="listingblock console-input">
 <div class="content">
@@ -454,7 +535,7 @@ done</code></pre>
 <div class="content">
 <div class="listingblock console-output">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">Workshop - Fixable CVEs of severity Important or higher	legacy-app	ACTIVE</code></pre>
 </div>
 </div>
 </div>
@@ -464,26 +545,36 @@ done</code></pre>
 <div class="sect2">
 <h3 id="image-check"><a class="anchor" href="#image-check"></a>7. Run a build-time check</h3>
 <div class="paragraph">
-<p><strong>What:</strong> Run <code>roxctl image check</code> against the legacy image and print the exit code.</p>
+<p><strong>What:</strong> Run <code>roxctl image check</code> against the legacy image, print the exit code, and list each violated policy with its <code>failingCheck</code> flag.</p>
 </div>
 <div class="paragraph">
 <p><strong>Why:</strong> This is the same check a CI pipeline runs before it pushes an image. It shows that the policy also applies at build time.</p>
 </div>
 <div class="listingblock console-input">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">roxctl --insecure-skip-tls-verify image check --image registry.access.redhat.com/ubi8/ubi:8.4 --output table
-echo "exit code: $?"</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">roxctl --insecure-skip-tls-verify image check --image registry.access.redhat.com/ubi8/ubi:8.4 \
+  --output json &gt; /tmp/image-check.json
+echo "exit code: $?"
+jq -r '.results[].violatedPolicies[] | [.name, .severity, .failingCheck] | @tsv' /tmp/image-check.json</code></pre>
 </div>
 </div>
 <div class="paragraph">
-<p>The table lists the workshop policy, and the exit code is <code>0</code>. <code>roxctl image check</code> only fails when a violated policy has the "fail build" enforcement action, which you add in Step 2.</p>
+<p><code>roxctl image check</code> fails, with exit code <code>1</code>, when a violated policy has the "fail build" enforcement action (<code>failingCheck</code> is <code>true</code>). The workshop policy is listed with <code>false</code>, because it has no enforcement actions yet. You add them in Step 2.</p>
+</div>
+<div class="paragraph">
+<p>The exit code is already <code>1</code>, because the built-in policy <strong>Fixable Severity at least Important</strong> ships with the "fail build" action and the legacy image violates it. A pipeline that runs <code>roxctl image check</code> against a default Central fails on this image before you change anything.</p>
 </div>
 <details>
-<summary class="title">Verify: The policy is listed and the exit code is 0</summary>
+<summary class="title">Verify: The workshop policy is listed and does not fail the check</summary>
 <div class="content">
 <div class="listingblock console-output">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">exit code: 1
+Fixable Severity at least Important	HIGH	true
+Workshop - Fixable CVEs of severity Important or higher	HIGH	false
+90-Day Image Age	LOW	false
+Docker CIS 4.1: Ensure That a User for the Container Has Been Created	LOW	false
+Red Hat Package Manager in Image	LOW	false</code></pre>
 </div>
 </div>
 </div>
