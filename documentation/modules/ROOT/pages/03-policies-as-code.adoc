@@ -12,7 +12,7 @@ At the end of Step 2 the four policies are custom resources that you applied by 
 
 == How it works
 
-Two controllers work in sequence. Argo CD keeps the `SecurityPolicy` custom resources in `stackrox` equal to the files in Git. The RHACS `config-controller` copies each custom resource into Central and marks the policy in the portal as managed externally. A change that starts in Git reaches Central through both controllers. A manual change to a custom resource is reverted by Argo CD self-heal, and a change made in the portal is overwritten by `config-controller`.
+Two controllers work in sequence. Argo CD keeps the `SecurityPolicy` custom resources in `stackrox` equal to the files in Git. The RHACS `config-controller` copies each custom resource into Central and marks the policy in the portal as managed externally. A change that starts in Git reaches Central through both controllers. A manual change to a custom resource is reverted by Argo CD self-heal. A change made in the portal stays in Central until the custom resource changes again, for example with the next commit. `config-controller` then writes the whole policy from the custom resource and the portal change is gone.
 
 The files in `03-policies-as-code/policies/` carry the same names and content as `02-image-compliance/enforce/`, so Argo CD adopts the existing resources without changing how ACS behaves.
 
@@ -20,8 +20,6 @@ The files in `03-policies-as-code/policies/` carry the same names and content as
 
 [#fork]
 === 1. Check your fork
-
-// TODO-TIMING: measure; add an icon:clock[] line only if more than 10 seconds
 
 *What:* Confirm that `GIT_REPO_URL` is your fork, that Argo CD can read it, and that you can push to it.
 
@@ -43,16 +41,18 @@ NOTE: The workshop assumes a public fork. For a private repository, add its cred
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+https://github.com/luisevm/acs-image-security-workshop.git main
+07bddd38fa092cd5c9565971fbe01b7ce4737110	refs/heads/main
+Everything up-to-date
 ----
+
+Your output shows your fork and the latest commit on your branch.
 ====
 
 '''
 
 [#argocd-rbac]
 === 2. Grant Argo CD access to the policies
-
-// TODO-TIMING: measure; add an icon:clock[] line only if more than 10 seconds
 
 *What:* Create a Role in `stackrox` that lets the Argo CD application controller manage `SecurityPolicy` resources, and nothing else in that namespace.
 
@@ -64,7 +64,7 @@ TODO-CAPTURE: replace with the real output from the validation run
 oc --context {hub-context} apply -f 03-policies-as-code/01-argocd-rbac.yaml
 ----
 
-.Verify: Argo CD can create policies and cannot read secrets
+.Verify: Argo CD can create policies
 [%collapsible]
 ====
 [.console-input]
@@ -72,17 +72,17 @@ oc --context {hub-context} apply -f 03-policies-as-code/01-argocd-rbac.yaml
 ----
 SA=system:serviceaccount:openshift-gitops:openshift-gitops-argocd-application-controller
 oc --context {hub-context} auth can-i create securitypolicies.config.stackrox.io -n stackrox --as="${SA}"
-oc --context {hub-context} auth can-i get secrets -n stackrox --as="${SA}"
+oc --context {hub-context} auth can-i delete deployments -n stackrox --as="${SA}"
 ----
 
 [.console-output]
 [source,bash]
 ----
 yes
-no
+yes
 ----
 
-// TODO-VALIDATE: the second answer depends on the default cluster permissions of the openshift-gitops instance; record the real answer
+The first answer comes from the Role you just created. The second answer is `no` on a default OpenShift GitOps installation, whose cluster role lets the controller read every resource but not change it outside a short list of API groups. The validation cluster answered `yes`, because its provisioning also bound the controller to `cluster-admin`. Check `oc --context {hub-context} get clusterrolebinding -o wide | grep argocd-application-controller` to see what your cluster grants.
 ====
 
 '''
@@ -90,7 +90,7 @@ no
 [#create-app]
 === 3. Hand the policies to Argo CD
 
-// TODO-TIMING: measure apply to Synced and Healthy; add an icon:clock[] line only if more than 10 seconds
+icon:clock[] ~25 seconds (Application created to first sync finished)
 
 *What:* Create an Argo CD Application that syncs `03-policies-as-code/policies/` from your fork into `stackrox`.
 
@@ -106,8 +106,10 @@ envsubst < 03-policies-as-code/02-application.yaml | oc --context {hub-context} 
 
 The Application has automated sync with `prune` and `selfHeal` turned on. It has no resources finalizer, so deleting the Application later leaves the policies in place.
 
-// TODO-SCREENSHOT: 03-argocd-application.png | OpenShift console application launcher > Cluster Argo CD > acs-image-policies | tree view with the four SecurityPolicy resources
-// TODO-VALIDATE: confirm the menu path to the Argo CD UI in the installed OpenShift and GitOps versions
+To see the Application in the Argo CD UI, open the application launcher (the grid icon in the top bar of the OpenShift console) and select *Cluster Argo CD*. Click *LOG IN VIA OPENSHIFT*. The first time, OpenShift asks you to authorize the service account `openshift-gitops-argocd-dex-server`: click *Allow selected permissions*. Then open the tile `acs-image-policies`.
+
+.Cluster Argo CD - acs-image-policies manages the four SecurityPolicy resources
+image::03-argocd-application.png[Argo CD application tree with acs-image-policies connected to four synced securitypolicy resources]
 
 .Verify: The Application is synced and manages the four policies
 [%collapsible]
@@ -122,8 +124,11 @@ oc --context {hub-context} get applications.argoproj.io acs-image-policies -n op
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+Synced Healthy
+workshop-fixable-important-cves workshop-image-age workshop-latest-tag workshop-trusted-registries
 ----
+
+NOTE: The commands in this step use the full resource name `applications.argoproj.io`. With RHACM installed, the short name `application` resolves to the Kubernetes `Application` resource (`applications.app.k8s.io`), and `oc get application acs-image-policies` returns `NotFound`.
 ====
 
 '''
@@ -131,7 +136,7 @@ TODO-CAPTURE: replace with the real output from the validation run
 [#git-change]
 === 4. Change a policy in Git
 
-// TODO-TIMING: measure push to new value in Central and to the legacy-app age violation resolving; add an icon:clock[] line with a breakdown
+icon:clock[] ~15 seconds (custom resource updated 8s after the push, `legacy-app` violation resolved 12s after the commit)
 
 *What:* Raise the image-age limit from 365 to 3650 days with a commit, then ask Argo CD to refresh.
 
@@ -162,25 +167,24 @@ The legacy image is older than 365 days and younger than 3650 days, so its age v
 oc --context {hub-context} get securitypolicy workshop-image-age -n stackrox \
   -o jsonpath='{.spec.policySections[0].policyGroups[0].values[0].value}{"\n"}'
 curl -skG -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/alerts" \
-  --data-urlencode "query=Namespace:acs-image-demo" \
+  --data-urlencode "query=Namespace:acs-image-demo+Violation State:RESOLVED" \
   | jq -r '.alerts[] | select(.policy.name | startswith("Workshop - Image older")) | [.policy.name, .deployment.name, .state] | @tsv'
 ----
 
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+3650
+Workshop - Image older than 365 days	legacy-app	RESOLVED
 ----
 
-// TODO-VALIDATE: record how long Central takes to re-evaluate legacy-app after the policy changes
+The resolved violation keeps the policy name it had when it was raised. Central re-evaluated `legacy-app` as soon as it received the changed policy. Without the `Violation State:RESOLVED` filter, the list also shows the `ATTEMPTED` violation from the rejected scale request in Step 2, which stays on record.
 ====
 
 '''
 
 [#self-heal]
 === 5. Watch Argo CD undo a manual change
-
-// TODO-TIMING: measure patch to revert; add an icon:clock[] line only if more than 10 seconds
 
 *What:* Lower the severity of the latest-tag policy directly on the cluster and watch it come back.
 
@@ -200,10 +204,24 @@ done
 .Verify: The severity returns to MEDIUM_SEVERITY
 [%collapsible]
 ====
+The patch shows up once, and Argo CD has reverted it by the next check, five seconds later:
+
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+securitypolicy.config.stackrox.io/workshop-latest-tag patched
+LOW_SEVERITY
+MEDIUM_SEVERITY
+MEDIUM_SEVERITY
+MEDIUM_SEVERITY
+MEDIUM_SEVERITY
+MEDIUM_SEVERITY
+MEDIUM_SEVERITY
+MEDIUM_SEVERITY
+MEDIUM_SEVERITY
+MEDIUM_SEVERITY
+MEDIUM_SEVERITY
+MEDIUM_SEVERITY
 ----
 ====
 
@@ -216,15 +234,24 @@ TODO-CAPTURE: replace with the real output from the validation run
 
 *Why:* Participants who use the portal need to know that a policy managed as code cannot be changed there for good.
 
-In the ACS portal, go to *Platform Configuration > Policy Management*, search for `Workshop`, and open *Workshop - Image uses the latest tag*. The policy is marked as managed externally. Try *Actions > Edit policy* and read the message.
+In the ACS portal, go to *Platform Configuration > Policy Management* and filter by the policy name `Workshop`. The *Origin* column shows *Externally managed* for the four workshop policies. Open *Workshop - Image uses the latest tag*, then open *Actions*. *Edit policy* is available, and the delete entry is disabled with the text *Cannot delete an externally managed policy*. Select *Edit policy* and read the warning at the top of the page, then click *Cancel*.
 
-// TODO-SCREENSHOT: 03-policy-managed-externally.png | Platform Configuration > Policy Management > Workshop - Image uses the latest tag | the "managed externally" badge and the edit message
-// TODO-VALIDATE: record the exact badge text and whether editing is disabled or allowed with a warning that config-controller overwrites the change
+.Policy Management - editing an externally managed policy
+image::03-policy-managed-externally.png[Edit page of the policy Workshop - Image uses the latest tag with the warning Externally managed policy]
 
 .Verify: The portal shows the policy as externally managed
 [%collapsible]
 ====
-TODO-CAPTURE: describe the badge and the edit behavior seen during the validation run
+The edit page starts with this warning:
+
+[.console-output]
+[source,bash]
+----
+Externally managed policy
+You are editing a policy that is managed externally. Any local changes to this policy will be automatically overwritten during the next resync.
+----
+
+The next resync happens when the custom resource changes, not on a timer you can count on. On the validation cluster, a severity change saved in Central was still in place 10 minutes later. It disappeared about 6 seconds after the next change to the custom resource's spec. A change to an annotation alone did not trigger it.
 ====
 
 '''
@@ -232,7 +259,6 @@ TODO-CAPTURE: describe the badge and the edit behavior seen during the validatio
 [#git-delete]
 === 7. Delete and restore a policy through Git
 
-// TODO-TIMING: measure push to CR pruned to policy gone from Central, and the same for the restore; add an icon:clock[] line with a breakdown
 
 *What:* Remove the registry policy file in Git, check that the policy disappears from the cluster and from Central, then revert the commit.
 
@@ -257,6 +283,8 @@ oc --context {hub-context} get securitypolicy workshop-trusted-registries -n sta
 curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/policies" \
   | jq -r '.policies[].name' | grep '^Workshop - '
 ----
+
+WARNING: On the validation cluster (RHACS 4.11.4), the policy disappeared from Central within seconds, but the custom resource stayed in the cluster with a deletion timestamp. `config-controller` deleted the policy in Central, failed to remove its finalizer because of an update conflict, and then kept failing with `policy "" is not externally managed and can be deleted only from central`. A plain `oc delete` of a test policy did not hit this. If `oc get securitypolicy workshop-trusted-registries -n stackrox` still returns the resource after a minute while the policy is gone from Central, remove the finalizer by hand: `oc --context {hub-context} patch securitypolicy workshop-trusted-registries -n stackrox --type=json -p '[{"op":"remove","path":"/metadata/finalizers"}]'`. Otherwise Argo CD cannot create the resource again in the next command.
 
 Restore it:
 
@@ -298,7 +326,7 @@ True
 | Every change is a Git commit that Argo CD applies
 
 | Someone can edit or delete a policy and nothing puts it back
-| Argo CD self-heal reverts changes to the custom resources, and `config-controller` overwrites portal edits
+| Argo CD self-heal reverts changes to the custom resources, the portal cannot delete an externally managed policy, and the next change in Git overwrites portal edits
 |===
 
 == What this does NOT solve (yet)

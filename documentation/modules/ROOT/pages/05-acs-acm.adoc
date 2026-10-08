@@ -20,8 +20,6 @@ The policy in this step requires a `SecuredCluster` with three admission control
 [#check-hub]
 === 1. Check the RHACM hub
 
-// TODO-TIMING: measure; add an icon:clock[] line only if more than 10 seconds
-
 *What:* Confirm that the hub runs and that it manages itself as `local-cluster`.
 
 *Why:* The policy targets `local-cluster`, so that managed cluster has to be joined and available.
@@ -39,16 +37,19 @@ oc --context {hub-context} get managedcluster local-cluster --show-labels
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+NAME              STATUS    AGE     CURRENTVERSION   DESIREDVERSION   MESSAGE
+multiclusterhub   Running   4h43m   2.17.3           2.17.3           All hub components ready.
+NAME            HUB ACCEPTED   MANAGED CLUSTER URLS                JOINED   AVAILABLE   AGE     LABELS
+local-cluster   true           https://api.<cluster-domain>:6443   True     True        4h39m   cloud=Other,cluster.open-cluster-management.io/clusterset=default,...,local-cluster=true,name=local-cluster,openshiftVersion=4.20.40,...,vendor=OpenShift
 ----
+
+The placement in the next sub-step selects the cluster by the `local-cluster=true` label.
 ====
 
 '''
 
 [#placement]
 === 2. Select the clusters
-
-// TODO-TIMING: measure; add an icon:clock[] line only if more than 10 seconds
 
 *What:* Create the `acs-policies` namespace, bind it to the `global` cluster set, and create a placement that selects `local-cluster`.
 
@@ -83,8 +84,6 @@ local-cluster
 [#baseline-policy]
 === 3. Apply the ACS baseline policy
 
-// TODO-TIMING: measure apply to Compliant; add an icon:clock[] line only if more than 10 seconds
-
 *What:* Create the RHACM policy that requires the `SecuredCluster` with admission enforcement on.
 
 *Why:* From now on RHACM reports the cluster as non-compliant the moment the setting changes, and fixes it.
@@ -97,10 +96,10 @@ The policy uses `$\{ACS_CLUSTER_NAME}` so that the cluster keeps the name it has
 envsubst < 05-acs-acm/03-policy-acs-baseline.yaml | oc --context {hub-context} apply -f -
 ----
 
-In the OpenShift console, switch the perspective to *All Clusters* and open *Governance > Policies*. The policy `acs-image-enforcement-baseline` appears with one cluster in scope.
+In the OpenShift console, switch the perspective at the top of the side navigation to *Fleet management* and open *Governance*, then the *Policies* tab. The policy `acs-image-enforcement-baseline` appears with remediation `enforce`, and the *Cluster violations* column shows one compliant cluster.
 
-// TODO-SCREENSHOT: 05-acm-governance.png | All Clusters > Governance > Policies | acs-image-enforcement-baseline row with its compliance status
-// TODO-VALIDATE: confirm the perspective switcher label and the Governance menu path in the installed RHACM version
+.Fleet management > Governance > Policies - the baseline policy is compliant on one cluster
+image::05-acm-governance.png[RHACM Governance Policies tab listing acs-image-enforcement-baseline in namespace acs-policies with remediation enforce and one compliant cluster]
 
 .Verify: The policy is compliant
 [%collapsible]
@@ -114,8 +113,11 @@ oc --context {hub-context} get policy acs-image-enforcement-baseline -n acs-poli
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+NAME                             REMEDIATION ACTION   COMPLIANCE STATE   AGE
+acs-image-enforcement-baseline   enforce              Compliant          2s
 ----
+
+The `SecuredCluster` from the setup already had the three admission controller settings, so the policy was compliant within two seconds and RHACM changed nothing. Its generation stayed the same in the minute after, so RHACM and the RHACS operator do not overwrite each other's work on this resource.
 ====
 
 '''
@@ -123,7 +125,7 @@ TODO-CAPTURE: replace with the real output from the validation run
 [#drift-enforcement]
 === 4. Turn admission enforcement off by hand
 
-// TODO-TIMING: measure patch to Enabled again, and to the latest-tag workload being rejected again; add an icon:clock[] line with a breakdown
+icon:clock[] ~1.5 minutes (RHACM restores the setting within a second, then the admission controller rolls out again for about 90 seconds)
 
 *What:* Set `admissionControl.enforcement` to `Disabled` on the `SecuredCluster`, watch RHACM turn it back on, and try the `latest` workload again.
 
@@ -150,7 +152,7 @@ oc --context {hub-context} rollout status deploy/admission-control -n stackrox -
 oc --context {hub-context} apply -f 02-image-compliance/tests/bad-latest.yaml
 ----
 
-// TODO-VALIDATE: record whether a workload created during the short window with enforcement off gets through, and add a NOTE with the measured window
+NOTE: RHACM put the setting back so fast that the 5-second loop above never printed `Disabled`. The short change was still enough for the RHACS operator to roll out the admission controller again. On the validation cluster, a server-side dry run of the `latest` workload, repeated every few seconds, was admitted on and off between about 30 and 90 seconds after the patch. A dry run passes through the same admission webhook as a real request, so a workload created in that window gets admitted. Restrict who can edit `SecuredCluster` resources with OpenShift RBAC.
 
 .Verify: RHACM recorded the drift and fixed it
 [%collapsible]
@@ -165,10 +167,13 @@ oc --context {hub-context} get policy acs-policies.acs-image-enforcement-baselin
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+2026-10-08T19:20:31Z  Compliant; notification - securedclusters [stackrox-secured-cluster-services] found as specified in namespace stackrox
+2026-10-08T19:20:26Z  Compliant; notification - securedclusters [stackrox-secured-cluster-services] was updated successfully in namespace stackrox
+2026-10-08T19:20:26Z  NonCompliant; violation - securedclusters [stackrox-secured-cluster-services] found but not as specified in namespace stackrox
+2026-10-08T19:18:33Z  Compliant; notification - securedclusters [stackrox-secured-cluster-services] found as specified in namespace stackrox
 ----
 
-// TODO-VALIDATE: confirm the name of the replicated policy in the local-cluster namespace
+The newest entry is at the top. RHACM found the drift and fixed it in the same second. RHACM copies the policy into the namespace of each managed cluster with the name `<namespace>.<policy>`, here `acs-policies.acs-image-enforcement-baseline` in `local-cluster`.
 ====
 
 '''
@@ -176,7 +181,7 @@ TODO-CAPTURE: replace with the real output from the validation run
 [#recreate]
 === 5. Delete the secured cluster services
 
-// TODO-TIMING: measure delete to SecuredCluster recreated, to sensor and admission-control ready, and to the cluster HEALTHY in ACS; add an icon:clock[] line with a breakdown
+icon:clock[] ~1 minute (resource recreated after 11s, `Deployed` after 31s, Sensor and the admission controller ready and the cluster `HEALTHY` in ACS after 64s)
 
 *What:* Delete the `SecuredCluster` resource and watch RHACM create it again.
 
@@ -202,7 +207,9 @@ oc --context {hub-context} rollout status deploy/admission-control -n stackrox -
 
 WARNING: While the services are gone, nothing enforces the image policies on this cluster. RHACM shortens that window, and the window lasts until the admission controller is ready again.
 
-// TODO-VALIDATE: confirm that the init bundle secrets survive the SecuredCluster deletion and that Sensor reconnects with the same cluster name
+The init bundle secrets (`sensor-tls`, `collector-tls`, and `admission-control-tls`) have no owner, so deleting the `SecuredCluster` leaves them in place. Sensor reconnected with them under the same cluster name and the same cluster ID in ACS.
+
+NOTE: RHACM recreates the `SecuredCluster` with only the fields that the policy lists. Settings from the setup that the policy does not mention, such as `perNode.taintToleration`, fall back to their defaults until someone reapplies the full resource. Put every setting you care about into the policy. The Reset section reapplies the setup version.
 
 .Verify: ACS sees the cluster as healthy and blocks the `latest` image again
 [%collapsible]
@@ -218,7 +225,10 @@ oc --context {hub-context} apply -f 02-image-compliance/tests/bad-latest.yaml
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+production	HEALTHY
+Error from server (Failed currently enforced policies from RHACS): error when creating "02-image-compliance/tests/bad-latest.yaml": admission webhook "policyeval.stackrox.io" denied the request:
+The attempted operation violated one or more enforced policies, described below:
+...
 ----
 ====
 
