@@ -311,4 +311,4 @@ oc --context hub wait securedcluster/stackrox-secured-cluster-services -n stackr
   --for=condition=Deployed --timeout=900s
 ----
 
-// TODO-VALIDATE: check that the replicated policy in the local-cluster namespace is removed with the parent policy
+Deleting the policy in `acs-policies` also removes its copy in the `local-cluster` namespace. `oc apply` of the setup `SecuredCluster` prints a warning about the missing `last-applied-configuration` annotation, because RHACM created the current resource. You can ignore it.

@@ -378,8 +378,9 @@ oc --context hub delete -f 03-policies-as-code/01-argocd-rbac.yaml --ignore-not-
 # 3. Restore the Git files in your fork
 F=03-policies-as-code/policies/03-policy-image-age.yaml
 sed -i.bak -e 's/"3650"/"365"/' -e 's/ 3650 days/ 365 days/g' "$F" && rm -f "$F.bak"
-git ls-files --error-unmatch 03-policies-as-code/policies/02-policy-trusted-registries.yaml >/dev/null 2>&1 \
-  || git checkout HEAD~1 -- 03-policies-as-code/policies/02-policy-trusted-registries.yaml
+P=03-policies-as-code/policies/02-policy-trusted-registries.yaml
+git ls-files --error-unmatch "$P" >/dev/null 2>&1 \
+  || git checkout "$(git rev-list -n 1 HEAD -- "$P")^" -- "$P"
 git add 03-policies-as-code/policies/
 git diff --cached --quiet || { git commit -m "Reset workshop policies to the Step 2 state"; git push origin "${GIT_REVISION}"; }
 
@@ -387,4 +388,4 @@ git diff --cached --quiet || { git commit -m "Reset workshop policies to the Ste
 oc --context hub apply -f 02-image-compliance/enforce/
 ----
 
-// TODO-VALIDATE: the HEAD~1 restore only covers the case where sub-step 7 stopped right after the delete commit; check this path during the reset run
+If sub-step 7 stopped after the delete commit, the `git checkout` line restores the registry policy file from the commit before the last change to it, however many commits came after.
