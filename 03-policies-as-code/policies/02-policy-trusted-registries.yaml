@@ -1,0 +1,44 @@
+# 02-policy-trusted-registries.yaml
+# Purpose: Flags images pulled from a registry that is not on the approved list.
+# Mode: managed by Argo CD from Git (Step 3). Edit this file, commit, and push.
+# Applied on the cluster where Central runs (namespace stackrox).
+apiVersion: config.stackrox.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: workshop-trusted-registries
+  namespace: stackrox
+  labels:
+    workshop: acs-image-workshop
+    app.kubernetes.io/part-of: acs-image-workshop
+spec:
+  policyName: "Workshop - Image from an unapproved registry"
+  description: "Image is pulled from a registry that is not on the approved list."
+  rationale: "Images from unvetted registries have no known provenance or security errata."
+  remediation: "Use images from registry.access.redhat.com, registry.redhat.io, quay.io, or the internal OpenShift registry."
+  categories:
+    - Supply Chain Security
+  severity: MEDIUM_SEVERITY
+  lifecycleStages:
+    - BUILD
+    - DEPLOY
+  eventSource: NOT_APPLICABLE
+  enforcementActions:
+    - FAIL_BUILD_ENFORCEMENT
+    - FAIL_DEPLOYMENT_CREATE_ENFORCEMENT
+    - FAIL_DEPLOYMENT_UPDATE_ENFORCEMENT
+    - SCALE_TO_ZERO_ENFORCEMENT
+  notifiers:
+    - workshop-alert-sink
+  scope:
+    - namespace: acs-image-demo
+  policySections:
+    - sectionName: "Registry not approved"
+      policyGroups:
+        - fieldName: Image Registry
+          booleanOperator: OR
+          negate: true
+          values:
+            - value: "registry.access.redhat.com"
+            - value: "registry.redhat.io"
+            - value: "quay.io"
+            - value: "image-registry.openshift-image-registry.svc:5000"
