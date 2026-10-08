@@ -21,7 +21,7 @@ Run `oc --context {hub-context} explain securitypolicy.spec.enforcementActions` 
 [#alert-sink]
 === 1. Set up an alert receiver
 
-icon:clock[] ~30 seconds (most of it is the pull of the Python image)
+icon:clock[] ~30 seconds the first time on a cluster (the pull of the Python image), about 5 seconds when the image is cached
 
 *What:* Deploy a small webhook receiver in `acs-alert-sink` and register it in ACS as a generic webhook notifier named `workshop-alert-sink`.
 
@@ -146,7 +146,7 @@ workshop-trusted-registries       True
 [#preflight]
 === 3. Check a manifest before deploying it
 
-icon:clock[] ~15 seconds (the check scans the image in the manifest first)
+icon:clock[] ~15-30 seconds (the check scans the image in the manifest first)
 
 *What:* Run `roxctl deployment check` on a manifest that uses the `latest` tag.
 
@@ -181,6 +181,8 @@ Red Hat Package Manager in Image	LOW	false
 ----
 
 `roxctl` also prints a `WARN` line about deployments without a namespace. The test manifest sets `namespace: acs-image-demo`, so you can ignore it.
+
+In the second validation run, a few hours later, the list also had *Fixable Severity at least Important* and *Workshop - Fixable CVEs of severity Important or higher*. Red Hat had published a fix for an `openssl-libs` CVE in the meantime, and the UBI 9 minimal image behind `latest` did not include it yet. CVE results change with the published data, so your list can differ.
 ====
 
 '''
@@ -213,13 +215,17 @@ oc --context {hub-context} logs deploy/alert-sink -n acs-alert-sink --tail=20
 .Verify: The workload runs and the alert arrived
 [%collapsible]
 ====
-The log has one `ALERT` line per policy violation, including `policy='Workshop - Image uses the latest tag' deployment='bad-latest'` and lines for `legacy-app`.
+The log has one `ALERT` line per new violation of a workshop policy: the test message from sub-step 1, the image-age violation of `legacy-app` raised in sub-step 2, and the latest-tag violation of `bad-latest`.
 
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+ALERT policy='This is a test message created to test integration with StackRox.' deployment=None namespace=None stage='DEPLOY'
+ALERT policy='Workshop - Image older than 365 days' deployment='legacy-app' namespace='acs-image-demo' stage='DEPLOY'
+ALERT policy='Workshop - Image uses the latest tag' deployment='bad-latest' namespace='acs-image-demo' stage='DEPLOY'
 ----
+
+The CVE violation of `legacy-app` is not in the log. It already existed in Step 1, and ACS notifies when a violation is raised, not when a notifier is added to its policy later.
 ====
 
 '''
@@ -376,6 +382,8 @@ Policy: Workshop - Fixable CVEs of severity Important or higher
 ...
 ----
 
+NOTE: The restart of `current-app` is compliant only while its UBI 9 minimal image has no fixable Important or Critical CVE. When Red Hat publishes a fix that the image does not include yet, the CVE policy rejects the restart as well, until a rebuilt image is out and you redeploy with a new `CURRENT_IMAGE`. On the validation date, a fix for an `openssl-libs` CVE appeared between the two runs. The restart still went through because Central had not rescanned the image yet.
+
 .Verify: Only the compliant restart went through
 [%collapsible]
 ====
@@ -455,7 +463,7 @@ The annotation value (`TICKET-1234` here) should point to the change or incident
 ----
 curl -skG -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/alerts" \
   --data-urlencode "query=Namespace:acs-image-demo" \
-  | jq -r '.alerts[] | select(.deployment.name == "breakglass-latest") | [.policy.name, .state] | @tsv'
+  | jq -r '.alerts[] | select(.state == "ACTIVE") | select(.deployment.name == "breakglass-latest") | [.policy.name, .state] | @tsv'
 ----
 
 The built-in policy *Emergency Deployment Annotation* is enabled by default and records every use of the annotation. The workshop latest-tag policy also reports the deployment, and its alert lists `SCALE_TO_ZERO_ENFORCEMENT`. On the validation cluster, `breakglass-latest` was not scaled down and still ran at `1/1` 90 seconds later.

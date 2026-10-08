@@ -42,6 +42,7 @@ oc --context hub get role,rolebinding -n stackrox argocd-securitypolicy-manager 
 oc --context hub get policy -A | grep acs-image-enforcement-baseline
 curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/policies" | jq -r '.policies[].name' | grep '^Workshop - '
 curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/notifiers" | jq -r '.notifiers[].name' | grep workshop-alert-sink
+curl -skG -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/alerts" --data-urlencode "query=Violation State:ATTEMPTED" | jq -r '.alerts[].policy.name' | grep '^Workshop - ' 
 git log --oneline -5   # fork back at 365 days, registry policy file present
 ```
 

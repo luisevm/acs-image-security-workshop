@@ -257,7 +257,7 @@ Without the policy filter, the namespace shows several more violations from buil
 ----
 curl -skG -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/alerts" \
   --data-urlencode "query=Namespace:acs-image-demo" \
-  | jq -r '.alerts[] | select(.policy.name | startswith("Workshop")) | [.policy.name, .deployment.name, .state] | @tsv'
+  | jq -r '.alerts[] | select(.state == "ACTIVE") | select(.policy.name | startswith("Workshop")) | [.policy.name, .deployment.name, .state] | @tsv'
 ----
 
 .Verify: Only `legacy-app` violates the policy
@@ -378,4 +378,14 @@ oc --context hub delete namespace acs-image-demo --ignore-not-found --wait
 # 3. Check that Central no longer has workshop policies (expect 0)
 curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/policies" \
   | jq -r '.policies[].name' | grep -c '^Workshop - '
+
+# 4. Resolve the attempted violations from Step 2 and Step 5 (they outlive the namespace)
+for id in $(curl -skG -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/alerts" \
+    --data-urlencode "query=Violation State:ATTEMPTED" \
+    | jq -r '.alerts[] | select(.policy.name | startswith("Workshop")) | .id'); do
+  curl -sk -o /dev/null -H "Authorization: Bearer ${ROX_API_TOKEN}" -X PATCH \
+    "https://${ACS_CENTRAL_ROUTE}/v1/alerts/${id}/resolve" -d '{}'
+done
 ----
+
+Central keeps a violation with the state *Attempted* for every request the admission controller rejected, even after the namespace is gone. The last command resolves them, so that a new run starts with an empty violation list.
