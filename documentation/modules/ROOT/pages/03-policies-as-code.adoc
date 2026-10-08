@@ -90,7 +90,7 @@ The first answer comes from the Role you just created. The second answer is `no`
 [#create-app]
 === 3. Hand the policies to Argo CD
 
-icon:clock[] ~25 seconds (Application created to first sync finished)
+icon:clock[] ~25-45 seconds (Application created to first sync finished; 26s and 46s in two validation runs)
 
 *What:* Create an Argo CD Application that syncs `03-policies-as-code/policies/` from your fork into `stackrox`.
 
@@ -178,7 +178,7 @@ curl -skG -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROU
 Workshop - Image older than 365 days	legacy-app	RESOLVED
 ----
 
-The resolved violation keeps the policy name it had when it was raised. Central re-evaluated `legacy-app` as soon as it received the changed policy. Without the `Violation State:RESOLVED` filter, the list also shows the `ATTEMPTED` violation from the rejected scale request in Step 2, which stays on record.
+The resolved violation keeps the policy name it had when it was raised. If you run the workshop a second time, older resolved violations show up as extra lines. Central re-evaluated `legacy-app` as soon as it received the changed policy. Without the `Violation State:RESOLVED` filter, the list also shows the `ATTEMPTED` violation from the rejected scale request in Step 2, which stays on record.
 ====
 
 '''
@@ -284,7 +284,9 @@ curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUT
   | jq -r '.policies[].name' | grep '^Workshop - '
 ----
 
-WARNING: On the validation cluster (RHACS 4.11.4), the policy disappeared from Central within seconds, but the custom resource stayed in the cluster with a deletion timestamp. `config-controller` deleted the policy in Central, failed to remove its finalizer because of an update conflict, and then kept failing with `policy "" is not externally managed and can be deleted only from central`. A plain `oc delete` of a test policy did not hit this. If `oc get securitypolicy workshop-trusted-registries -n stackrox` still returns the resource after a minute while the policy is gone from Central, remove the finalizer by hand: `oc --context {hub-context} patch securitypolicy workshop-trusted-registries -n stackrox --type=json -p '[{"op":"remove","path":"/metadata/finalizers"}]'`. Otherwise Argo CD cannot create the resource again in the next command.
+Both the custom resource and the Central policy are normally gone about 10 seconds after the push, and the restore below takes about as long.
+
+WARNING: In one of two validation runs (RHACS 4.11.4), the policy disappeared from Central within seconds, but the custom resource stayed in the cluster with a deletion timestamp. `config-controller` deleted the policy in Central, failed to remove its finalizer because of an update conflict, and then kept failing with `policy "" is not externally managed and can be deleted only from central`. A plain `oc delete` of a test policy did not hit this. If `oc get securitypolicy workshop-trusted-registries -n stackrox` still returns the resource after a minute while the policy is gone from Central, remove the finalizer by hand: `oc --context {hub-context} patch securitypolicy workshop-trusted-registries -n stackrox --type=json -p '[{"op":"remove","path":"/metadata/finalizers"}]'`. Otherwise Argo CD cannot create the resource again in the next command.
 
 Restore it:
 
