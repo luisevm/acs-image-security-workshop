@@ -115,7 +115,7 @@ The Application has automated sync with `prune` and `selfHeal` turned on. It has
 [.console-input]
 [source,bash,subs="+macros,+attributes"]
 ----
-oc --context {hub-context} get application acs-image-policies -n openshift-gitops \
+oc --context {hub-context} get applications.argoproj.io acs-image-policies -n openshift-gitops \
   -o jsonpath='{.status.sync.status} {.status.health.status}{"\n"}{.status.resources[*].name}{"\n"}'
 ----
 
@@ -145,7 +145,7 @@ sed -i.bak -e 's/"365"/"3650"/' -e 's/ 365 days/ 3650 days/g' "$F" && rm -f "$F.
 git diff --stat
 git commit -am "Raise the workshop image age limit to 3650 days"
 git push origin "${GIT_REVISION}"
-oc --context {hub-context} annotate application acs-image-policies -n openshift-gitops \
+oc --context {hub-context} annotate applications.argoproj.io acs-image-policies -n openshift-gitops \
   argocd.argoproj.io/refresh=hard --overwrite
 ----
 
@@ -244,7 +244,7 @@ TODO-CAPTURE: describe the badge and the edit behavior seen during the validatio
 git rm 03-policies-as-code/policies/02-policy-trusted-registries.yaml
 git commit -m "Remove the workshop registry policy"
 git push origin "${GIT_REVISION}"
-oc --context {hub-context} annotate application acs-image-policies -n openshift-gitops \
+oc --context {hub-context} annotate applications.argoproj.io acs-image-policies -n openshift-gitops \
   argocd.argoproj.io/refresh=hard --overwrite
 ----
 
@@ -265,7 +265,7 @@ Restore it:
 ----
 git revert --no-edit HEAD
 git push origin "${GIT_REVISION}"
-oc --context {hub-context} annotate application acs-image-policies -n openshift-gitops \
+oc --context {hub-context} annotate applications.argoproj.io acs-image-policies -n openshift-gitops \
   argocd.argoproj.io/refresh=hard --overwrite
 ----
 
@@ -342,7 +342,7 @@ This returns the cluster to the state at the end of Step 2 and puts the image-ag
 [source,bash]
 ----
 # 1. Stop Argo CD from managing the policies (no finalizer, so the policies stay)
-oc --context hub delete application acs-image-policies -n openshift-gitops --ignore-not-found --wait
+oc --context hub delete applications.argoproj.io acs-image-policies -n openshift-gitops --ignore-not-found --wait
 
 # 2. Remove the Argo CD permissions
 oc --context hub delete -f 03-policies-as-code/01-argocd-rbac.yaml --ignore-not-found

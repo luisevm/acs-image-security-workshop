@@ -37,7 +37,7 @@ Leftover check after the resets:
 ```bash
 oc --context hub get ns acs-image-demo acs-alert-sink acs-policies --ignore-not-found
 oc --context hub get securitypolicies -n stackrox -l workshop=acs-image-workshop
-oc --context hub get application -n openshift-gitops acs-image-policies --ignore-not-found
+oc --context hub get applications.argoproj.io -n openshift-gitops acs-image-policies --ignore-not-found
 oc --context hub get role,rolebinding -n stackrox argocd-securitypolicy-manager --ignore-not-found
 oc --context hub get policy -A | grep acs-image-enforcement-baseline
 curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/policies" | jq -r '.policies[].name' | grep '^Workshop - '
