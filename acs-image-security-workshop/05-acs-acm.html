@@ -398,7 +398,7 @@ oc --context hub apply -f 02-image-compliance/tests/bad-latest.yaml</code></pre>
 <i class="fa icon-note" title="Note"></i>
 </td>
 <td class="content">
-RHACM put the setting back so fast that the 5-second loop above never printed <code>Disabled</code>. The short change was still enough for the RHACS operator to roll out the admission controller again. On the validation cluster, a server-side dry run of the <code>latest</code> workload, repeated every few seconds, was admitted on and off between about 30 and 90 seconds after the patch. A dry run passes through the same admission webhook as a real request, so a workload created in that window gets admitted. Restrict who can edit <code>SecuredCluster</code> resources with OpenShift RBAC.
+RHACM puts the setting back so fast that the 5-second loop above prints <code>Disabled</code> at most once. The short change is still enough for the RHACS operator to roll out the admission controller again. In two validation runs, a server-side dry run of the <code>latest</code> workload, repeated every few seconds, was admitted on and off between about 25 and 90 seconds after the patch. A dry run passes through the same admission webhook as a real request, so a workload created in that window gets admitted. Restrict who can edit <code>SecuredCluster</code> resources with OpenShift RBAC.
 </td>
 </tr>
 </table>
@@ -578,7 +578,7 @@ The attempted operation violated one or more enforced policies, described below:
 <p><a href="https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_management_for_kubernetes/2.17/html/governance/governance">RHACM governance</a></p>
 </li>
 <li>
-<p><a href="https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.9/html/installing/install-secured-cluster-config-options-ocp">Secured cluster configuration options (Operator)</a></p>
+<p><a href="https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.11/html-single/installing#admission-controller-settings_install-secured-cluster-config-options-ocp">Secured cluster configuration options: admission controller settings (Operator)</a></p>
 </li>
 </ul>
 </div>
