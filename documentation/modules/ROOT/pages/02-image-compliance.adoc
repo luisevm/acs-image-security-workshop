@@ -14,14 +14,14 @@ The policies cover two lifecycle stages. At the BUILD stage, `roxctl image check
 
 A policy without enforcement actions only creates violations and notifications. Adding enforcement actions makes ACS act: `FAIL_BUILD_ENFORCEMENT` makes `roxctl image check` exit with an error, the `FAIL_DEPLOYMENT_*` actions make the admission controller reject the request, and `SCALE_TO_ZERO_ENFORCEMENT` lets Sensor scale a violating deployment to zero replicas if it gets past admission, for example after a webhook timeout.
 
-// TODO-VALIDATE: confirm that the SecurityPolicy CRD accepts FAIL_DEPLOYMENT_CREATE_ENFORCEMENT and FAIL_DEPLOYMENT_UPDATE_ENFORCEMENT, and which action the admission controller uses to reject. If the CRD rejects them, keep FAIL_BUILD_ENFORCEMENT and SCALE_TO_ZERO_ENFORCEMENT and update this paragraph.
+Run `oc --context {hub-context} explain securitypolicy.spec.enforcementActions` to list every action the `SecurityPolicy` resource accepts.
 
 == Steps to apply
 
 [#alert-sink]
 === 1. Set up an alert receiver
 
-// TODO-TIMING: measure apply to alert-sink Available (includes the python image pull); add an icon:clock[] line only if more than 10 seconds
+icon:clock[] ~30 seconds (most of it is the pull of the Python image)
 
 *What:* Deploy a small webhook receiver in `acs-alert-sink` and register it in ACS as a generic webhook notifier named `workshop-alert-sink`.
 
@@ -45,9 +45,7 @@ envsubst < 02-image-compliance/02-notifier.json \
     -X POST "https://${ACS_CENTRAL_ROUTE}/v1/notifiers" -d @- | jq '{id, name, type}'
 ----
 
-// TODO-VALIDATE: confirm the generic notifier JSON schema and that Central can reach the alert-sink Service (network policies in stackrox)
-
-.Verify: The notifier exists
+.Verify: The notifier exists and Central can reach the receiver
 [%collapsible]
 ====
 [.console-input]
@@ -60,7 +58,27 @@ curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUT
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+workshop-alert-sink	generic
+----
+
+Send a test message through the notifier and read it in the receiver's log:
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+NOTIFIER_ID=$(curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/notifiers" \
+  | jq -r '.notifiers[] | select(.name=="workshop-alert-sink") | .id')
+envsubst < 02-image-compliance/02-notifier.json | jq --arg id "${NOTIFIER_ID}" '. + {id: $id}' \
+  | curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" -H "Content-Type: application/json" \
+    -X POST "https://${ACS_CENTRAL_ROUTE}/v1/notifiers/test" -d @-
+oc --context {hub-context} logs deploy/alert-sink -n acs-alert-sink --tail=1
+----
+
+[.console-output]
+[source,bash]
+----
+{}
+ALERT policy='This is a test message created to test integration with StackRox.' deployment=None namespace=None stage='DEPLOY'
 ----
 ====
 
@@ -68,8 +86,6 @@ TODO-CAPTURE: replace with the real output from the validation run
 
 [#apply-inform]
 === 2. Apply the four policies in inform mode
-
-// TODO-TIMING: measure apply to all four AcceptedByCentral=True; add an icon:clock[] line only if more than 10 seconds
 
 *What:* Create the latest-tag, registry, and image-age policies and update the Step 1 CVE policy so that it also uses the notifier.
 
@@ -102,7 +118,7 @@ oc --context {hub-context} apply -f 02-image-compliance/policies/
 | `legacy-app`
 |===
 
-// TODO-VALIDATE: confirm the value format of the Image Age criterion ("365" means days) and that current-app does not match it
+The `Image Age` value is a number of days. The UBI 8.4 image was built in October 2021. The current UBI 9 minimal image was two days old on the validation date, so only `legacy-app` matches.
 
 .Verify: Central accepted all four policies
 [%collapsible]
@@ -117,7 +133,11 @@ oc --context {hub-context} get securitypolicies -n stackrox -l workshop=acs-imag
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+NAME                              ACCEPTED
+workshop-fixable-important-cves   True
+workshop-image-age                True
+workshop-latest-tag               True
+workshop-trusted-registries       True
 ----
 ====
 
@@ -126,32 +146,41 @@ TODO-CAPTURE: replace with the real output from the validation run
 [#preflight]
 === 3. Check a manifest before deploying it
 
-// TODO-TIMING: measure; add an icon:clock[] line only if more than 10 seconds
+icon:clock[] ~15 seconds (the check scans the image in the manifest first)
 
 *What:* Run `roxctl deployment check` on a manifest that uses the `latest` tag.
 
 *Why:* Developers and pipelines can see a policy result before they touch the cluster.
 
+The `--cluster` flag makes the check use the policy scopes and namespace context of your cluster, so the workshop policies scoped to `acs-image-demo` apply:
+
 [.console-input]
 [source,bash,subs="+macros,+attributes"]
 ----
 roxctl --insecure-skip-tls-verify deployment check --cluster "${ACS_CLUSTER_NAME}" \
-  -f 02-image-compliance/tests/bad-latest.yaml --output table
+  -f 02-image-compliance/tests/bad-latest.yaml --output json > /tmp/deployment-check.json
 echo "exit code: $?"
+jq -r '.results[].violatedPolicies[] | [.name, .severity, .failingCheck] | @tsv' /tmp/deployment-check.json
 ----
-
-// TODO-VALIDATE: confirm the --cluster flag exists in the installed roxctl version
 
 .Verify: The latest-tag policy is listed
 [%collapsible]
 ====
-The output lists *Workshop - Image uses the latest tag*. The policies are still in inform mode, so the check does not mark the deployment as blocked.
+The output lists *Workshop - Image uses the latest tag*. The policies are still in inform mode, so `failingCheck` is `false` and the exit code is `0`. Built-in policies, including *Latest tag*, show up as well.
 
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+exit code: 0
+Container with privilege escalation allowed	MEDIUM	false
+Pod Service Account Token Automatically Mounted	MEDIUM	false
+Workshop - Image uses the latest tag	MEDIUM	false
+Docker CIS 4.1: Ensure That a User for the Container Has Been Created	LOW	false
+Latest tag	LOW	false
+Red Hat Package Manager in Image	LOW	false
 ----
+
+`roxctl` also prints a `WARN` line about deployments without a namespace. The test manifest sets `namespace: acs-image-demo`, so you can ignore it.
 ====
 
 '''
@@ -159,7 +188,7 @@ TODO-CAPTURE: replace with the real output from the validation run
 [#inform-alert]
 === 4. Deploy a workload and get alerted
 
-// TODO-TIMING: measure apply to violation visible and to alert in the sink log; add an icon:clock[] line
+icon:clock[] ~15 seconds (deployment available after 9s, alert in the receiver's log after 14s)
 
 *What:* Deploy the `latest`-tag workload and read the alert in the receiver's log.
 
@@ -198,8 +227,6 @@ TODO-CAPTURE: replace with the real output from the validation run
 [#enforce]
 === 5. Switch the policies to enforce
 
-// TODO-TIMING: measure apply to admission controller rejecting requests (policy propagation); add an icon:clock[] line
-
 *What:* Apply the enforced version of the four policies.
 
 *Why:* Once the inform results look right, enforcement stops new risk from reaching the cluster.
@@ -213,8 +240,9 @@ oc --context {hub-context} get deploy -n acs-image-demo
 
 The enforced files differ from the inform files only by the `enforcementActions` list. Compare them with `diff 02-image-compliance/policies/01-policy-latest-tag.yaml 02-image-compliance/enforce/01-policy-latest-tag.yaml`.
 
-// TODO-VALIDATE: record what happens to the already running legacy-app and bad-latest after enforcement (kept running and reported, or scaled to zero). Update the WARNING below with the observed behavior.
-WARNING: Turning on enforcement does not remove workloads that already run. Whether ACS scales an existing violating deployment to zero depends on its enforcement actions. Check the `READY` column above before you go on.
+The admission controller started to reject new `latest`-tag deployments about five seconds after the apply on the validation cluster.
+
+WARNING: Turning on enforcement does not touch workloads that already run. `legacy-app` and `bad-latest` stayed at `1/1` after the switch, although the policies include `SCALE_TO_ZERO_ENFORCEMENT`. Their existing violations stay active, and enforcement applies the next time someone creates, updates, or scales them. Review the inform-mode violations before you enforce, and fix or remove the workloads that would be blocked.
 
 .Verify: The policies now have enforcement actions
 [%collapsible]
@@ -229,7 +257,11 @@ oc --context {hub-context} get securitypolicies -n stackrox -l workshop=acs-imag
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+NAME                              ACTIONS
+workshop-fixable-important-cves   [FAIL_BUILD_ENFORCEMENT FAIL_DEPLOYMENT_CREATE_ENFORCEMENT FAIL_DEPLOYMENT_UPDATE_ENFORCEMENT SCALE_TO_ZERO_ENFORCEMENT]
+workshop-image-age                [FAIL_BUILD_ENFORCEMENT FAIL_DEPLOYMENT_CREATE_ENFORCEMENT FAIL_DEPLOYMENT_UPDATE_ENFORCEMENT SCALE_TO_ZERO_ENFORCEMENT]
+workshop-latest-tag               [FAIL_BUILD_ENFORCEMENT FAIL_DEPLOYMENT_CREATE_ENFORCEMENT FAIL_DEPLOYMENT_UPDATE_ENFORCEMENT SCALE_TO_ZERO_ENFORCEMENT]
+workshop-trusted-registries       [FAIL_BUILD_ENFORCEMENT FAIL_DEPLOYMENT_CREATE_ENFORCEMENT FAIL_DEPLOYMENT_UPDATE_ENFORCEMENT SCALE_TO_ZERO_ENFORCEMENT]
 ----
 ====
 
@@ -237,8 +269,6 @@ TODO-CAPTURE: replace with the real output from the validation run
 
 [#block-creates]
 === 6. Try non-compliant creates
-
-// TODO-TIMING: measure; add an icon:clock[] line only if more than 10 seconds
 
 *What:* Delete the `latest` workload and create it again, then try to create a workload from Docker Hub.
 
@@ -252,9 +282,36 @@ oc --context {hub-context} apply -f 02-image-compliance/tests/bad-latest.yaml
 oc --context {hub-context} apply -f 02-image-compliance/tests/bad-registry.yaml
 ----
 
-Both `apply` commands fail. The error message comes from the ACS webhook and names the violated policy and its remediation text.
+Both `apply` commands fail. The error message comes from the ACS webhook and names the violated policy and its remediation text. The registry rejection looks like this:
 
-NOTE: The registry check happens before any image pull, so Docker Hub pull limits do not matter here.
+[.console-output]
+[source,bash]
+----
+Error from server (Failed currently enforced policies from RHACS): error when creating "02-image-compliance/tests/bad-registry.yaml": admission webhook "policyeval.stackrox.io" denied the request:
+The attempted operation violated one or more enforced policies, described below:
+
+Policy: Workshop - Image from an unapproved registry
+- Description:
+    ↳ Image is pulled from a registry that is not on the approved list.
+- Rationale:
+    ↳ Images from unvetted registries have no known provenance or security errata.
+- Remediation:
+    ↳ Use images from registry.access.redhat.com, registry.redhat.io, quay.io, or the
+      internal OpenShift registry.
+- Violations:
+    - Container 'app' has image with registry 'docker.io'
+
+
+2 additional policies depend on image enrichment results and will be evaluated only after the above violations are addressed.
+
+In case of emergency, add the annotation {"admission.stackrox.io/break-glass": "ticket-1234"} to your deployment with an updated ticket number
+----
+
+The `bad-latest` rejection has the same shape, with the policy *Workshop - Image uses the latest tag* and the violation `Container 'app' has image with tag 'latest'`.
+
+NOTE: The registry and tag checks only read the image reference, so they run before any image pull or scan, and Docker Hub pull limits do not matter here. The two policies that need scan data (CVEs and image age) wait until those violations are fixed, as the last lines of the message say.
+
+Each rejected request is also recorded as a violation with the state *Attempted* (the *Attempted* tab on the *Violations* page) and sent to the notifier.
 
 .Verify: Neither workload exists
 [%collapsible]
@@ -268,7 +325,9 @@ oc --context {hub-context} get deploy -n acs-image-demo
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run, and paste the two webhook error messages above
+NAME          READY   UP-TO-DATE   AVAILABLE   AGE
+current-app   1/1     1            1           11m
+legacy-app    1/1     1            1           11m
 ----
 ====
 
@@ -276,8 +335,6 @@ TODO-CAPTURE: replace with the real output from the validation run, and paste th
 
 [#block-updates]
 === 7. Try updates and scaling
-
-// TODO-TIMING: measure; add an icon:clock[] line only if more than 10 seconds
 
 *What:* Point `current-app` at the `latest` tag, scale `legacy-app`, and restart `current-app` unchanged.
 
@@ -298,7 +355,26 @@ oc --context {hub-context} rollout restart deploy/current-app -n acs-image-demo
 oc --context {hub-context} rollout status deploy/current-app -n acs-image-demo --timeout=180s
 ----
 
-// TODO-VALIDATE: confirm that the scale request is rejected (the admission controller covers CREATE, UPDATE, and SCALE) and record the message
+The scale request is rejected because the image of `legacy-app` breaks the two policies that use scan data. The message lists each fixable CVE with the version that fixes it (trimmed):
+
+[.console-output]
+[source,bash]
+----
+Error from server (Failed currently enforced policies from RHACS): admission webhook "policyeval.stackrox.io" denied the request:
+The attempted operation violated one or more enforced policies, described below:
+
+Policy: Workshop - Image older than 365 days
+...
+- Violations:
+    - Container 'app' has image created at 2021-10-26 13:03:40 (UTC)
+
+Policy: Workshop - Fixable CVEs of severity Important or higher
+...
+- Violations:
+    - Fixable CVE-2018-25032 (CVSS 8.2) (severity Important) found in component 'zlib' (version 1.2.11-17.el8) in container 'app', resolved by version 0:1.2.11-18.el8_5
+    - Fixable CVE-2022-0778 (CVSS 7.5) (severity Important) found in component 'openssl-libs' (version 1:1.1.1g-15.el8_3) in container 'app', resolved by version 1:1.1.1k-6.el8_5
+...
+----
 
 .Verify: Only the compliant restart went through
 [%collapsible]
@@ -313,7 +389,9 @@ oc --context {hub-context} get deploy -n acs-image-demo \
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+NAME          REPLICAS   IMAGE
+current-app   1          registry.access.redhat.com/ubi9/ubi-minimal@sha256:68b92732accbffdd8e2491b4c29976634ed92459f5779dac2aad670c967337c7
+legacy-app    1          registry.access.redhat.com/ubi8/ubi:8.4
 ----
 ====
 
@@ -322,8 +400,6 @@ TODO-CAPTURE: replace with the real output from the validation run
 [#ci-gate]
 === 8. Fail the build-time check
 
-// TODO-TIMING: measure; add an icon:clock[] line only if more than 10 seconds
-
 *What:* Run the Step 1 `roxctl image check` again.
 
 *Why:* With `FAIL_BUILD_ENFORCEMENT` set, the same rule now stops a pipeline, so a non-compliant image fails before anyone tries to deploy it.
@@ -331,17 +407,28 @@ TODO-CAPTURE: replace with the real output from the validation run
 [.console-input]
 [source,bash,subs="+macros,+attributes"]
 ----
-roxctl --insecure-skip-tls-verify image check --image registry.access.redhat.com/ubi8/ubi:8.4 --output table
+roxctl --insecure-skip-tls-verify image check --image registry.access.redhat.com/ubi8/ubi:8.4 \
+  --output json > /tmp/image-check.json
 echo "exit code: $?"
+jq -r '.results[].violatedPolicies[] | [.name, .severity, .failingCheck] | @tsv' /tmp/image-check.json
 ----
 
-.Verify: The exit code is not 0
+.Verify: The workshop policies now fail the check
 [%collapsible]
 ====
+In Step 1 only the built-in policy had `failingCheck` set to `true`. Now the two workshop policies that the legacy image violates have it as well:
+
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+ERROR:	checking image failed: failed policies found: 3 policies violated that are failing the check
+exit code: 1
+Fixable Severity at least Important	HIGH	true
+Workshop - Fixable CVEs of severity Important or higher	HIGH	true
+90-Day Image Age	LOW	false
+Docker CIS 4.1: Ensure That a User for the Container Has Been Created	LOW	false
+Red Hat Package Manager in Image	LOW	false
+Workshop - Image older than 365 days	LOW	true
 ----
 ====
 
@@ -349,8 +436,6 @@ TODO-CAPTURE: replace with the real output from the validation run
 
 [#break-glass]
 === 9. Use the break-glass bypass
-
-// TODO-TIMING: measure apply to Available and to the violation; add an icon:clock[] line only if more than 10 seconds
 
 *What:* Deploy the `latest` workload again with the `admission.stackrox.io/break-glass` annotation.
 
@@ -373,7 +458,7 @@ curl -skG -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROU
   | jq -r '.alerts[] | select(.deployment.name == "breakglass-latest") | [.policy.name, .state] | @tsv'
 ----
 
-// TODO-VALIDATE: confirm that the built-in "Emergency Deployment Annotation" policy is enabled by default and fires; record whether Sensor later scales breakglass-latest to zero
+The built-in policy *Emergency Deployment Annotation* is enabled by default and records every use of the annotation. The workshop latest-tag policy also reports the deployment, and its alert lists `SCALE_TO_ZERO_ENFORCEMENT`. On the validation cluster, `breakglass-latest` was not scaled down and still ran at `1/1` 90 seconds later.
 
 .Verify: The deployment was admitted and the bypass is on record
 [%collapsible]
@@ -383,7 +468,13 @@ The list includes *Emergency Deployment Annotation*.
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+Emergency Deployment Annotation	ACTIVE
+Latest tag	ACTIVE
+Workshop - Image uses the latest tag	ACTIVE
+Red Hat Package Manager in Image	ACTIVE
+Container with privilege escalation allowed	ACTIVE
+Docker CIS 4.1: Ensure That a User for the Container Has Been Created	ACTIVE
+Pod Service Account Token Automatically Mounted	ACTIVE
 ----
 ====
 

@@ -11,8 +11,7 @@ This page prepares the single OpenShift cluster used in every step. You install 
 * A GitHub account, used in xref:03-policies-as-code.adoc[Step 3] to fork this repository
 * Network access from your workstation to the cluster API, the cluster routes, and `registry.access.redhat.com`
 
-// TODO-VALIDATE: record node count and size of the validation cluster, and whether ACS + ACM fit without resource pressure.
-IMPORTANT: ACS Central, the ACS secured cluster services, OpenShift GitOps, and the RHACM hub all run on this one cluster. Check that the worker nodes have enough free CPU and memory before you start.
+IMPORTANT: ACS Central, the ACS secured cluster services, OpenShift GitOps, and the RHACM hub all run on this one cluster. Check that the worker nodes have enough free CPU and memory before you start. The workshop was validated on a cluster with one schedulable control plane node (32 vCPU, 128 GiB) and three workers (16 vCPU, 32 GiB each). With all four products running, CPU requests stayed between 32% and 61% of each node.
 
 [#cluster-mapping]
 == Cluster mapping
@@ -30,21 +29,21 @@ IMPORTANT: ACS Central, the ACS secured cluster services, OpenShift GitOps, and 
 
 Follow these sub-steps when the cluster has none of the operators yet. If someone already prepared it, go to <<option-b>>.
 
+WARNING: Do not run sub-step 4 on a cluster where any of the three operators is already installed. The manifests create an `OperatorGroup` next to the existing one, and OLM stops reconciling a namespace that has two. They also set the subscription to the catalog's default channel, so OLM upgrades an operator that was installed from an older channel. On a pre-provisioned cluster, use <<option-b>>.
+
 [#clone-repo]
 === 1. Fork and clone the repository
-
-// TODO-TIMING: measure; add an icon:clock[] line only if this takes more than 10 seconds
 
 *What:* Fork this repository to your GitHub account and clone your fork.
 
 *Why:* Step 3 pushes policy changes to Git, and OpenShift GitOps can only follow a repository you can push to.
 
-Fork the repository in the GitHub web UI, then clone your fork. Keep the fork public so that Argo CD can read it without credentials.
+Fork link:https://github.com/luisevm/acs-image-security-workshop[the workshop repository] in the GitHub web UI, then clone your fork. Keep the fork public so that Argo CD can read it without credentials. Replace `<your-github-user>` with your GitHub account:
 
 [.console-input]
 [source,bash,subs="+macros,+attributes"]
 ----
-git clone https://github.com/GITHUB_USER/acs-image-security-workshop.git
+git clone https://github.com/<your-github-user>/acs-image-security-workshop.git
 cd acs-image-security-workshop
 ----
 
@@ -60,8 +59,11 @@ git remote -v
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+origin	https://github.com/luisevm/acs-image-security-workshop.git (fetch)
+origin	https://github.com/luisevm/acs-image-security-workshop.git (push)
 ----
+
+Your output shows your own account in place of `luisevm`.
 ====
 
 '''
@@ -86,7 +88,7 @@ export OCP_USER="<user>"
 export OCP_PASSWORD="<password>"
 
 export ACS_CLUSTER_NAME="workshop-cluster"          # cluster name shown in the ACS portal
-export GIT_REPO_URL="https://github.com/GITHUB_USER/acs-image-security-workshop.git"  # your fork (Step 3)
+export GIT_REPO_URL="https://github.com/<your-github-user>/acs-image-security-workshop.git"  # your fork (Step 3)
 export GIT_REVISION="main"
 
 # -- Context cleanup (idempotent) -------------------------------------------
@@ -105,7 +107,7 @@ if oc --context hub get route central -n stackrox >/dev/null 2>&1; then
   export ROX_ENDPOINT="${ACS_CENTRAL_ROUTE}:443"
   # The operator generates central-htpasswd unless the Central CR names its own adminPasswordSecret
   ROX_PW_SECRET="$(oc --context hub get central stackrox-central-services -n stackrox -o jsonpath='{.spec.central.adminPasswordSecret.name}')"
-  export ROX_ADMIN_PASSWORD="$(oc --context hub get secret "${ROX_PW_SECRET:-central-htpasswd}" -n stackrox -o jsonpath='{.data.password}' | base64 -d)"
+  export ACS_ADMIN_PASSWORD="$(oc --context hub get secret "${ROX_PW_SECRET:-central-htpasswd}" -n stackrox -o jsonpath='{.data.password}' | base64 -d)"
 fi
 # API token written by Step 0 (gitignored file); roxctl reads ROX_ENDPOINT and ROX_API_TOKEN
 if [ -f .rox-token ]; then
@@ -145,12 +147,16 @@ The ACS variables stay empty until Central exists. Source the file again after e
 | `curl` and `roxctl` commands
 | Host name of the ACS portal and API
 
-| `ROX_ADMIN_PASSWORD`, `ROX_API_TOKEN`
+| `ACS_ADMIN_PASSWORD`, `ROX_API_TOKEN`
 | `curl` and `roxctl` commands
 | ACS admin password and an API token with the Admin role
 |===
 
 IMPORTANT: Never commit `myenv.sh` or `.rox-token`. Both are in `.gitignore`.
+
+NOTE: The admin password variable is called `ACS_ADMIN_PASSWORD` on purpose. `roxctl` reads `ROX_ADMIN_PASSWORD` from the environment, and with both that variable and `ROX_API_TOKEN` set it fails with `cannot use basic and token-based authentication at the same time`.
+
+If the cluster was prepared by someone else (<<option-b>>), set `ACS_CLUSTER_NAME` to the name the cluster already has under *Platform Configuration > Clusters* in the ACS portal. The validation cluster used for this workshop was registered as `production`, and the outputs on these pages show that name.
 
 .Verify: The file parses
 [%collapsible]
@@ -173,8 +179,6 @@ myenv.sh syntax OK
 [#login-clusters]
 === 3. Log in to the cluster
 
-// TODO-TIMING: measure; add an icon:clock[] line only if this takes more than 10 seconds
-
 *What:* Source `myenv.sh` to log in and create the `{hub-context}` context.
 
 *Why:* Every `oc` command in the workshop uses `--context {hub-context}`, so the context name has to exist before anything else runs.
@@ -185,7 +189,7 @@ myenv.sh syntax OK
 source myenv.sh
 ----
 
-// TODO-VALIDATE: if the API certificate is not trusted, oc login prompts for insecure connections. Record what happened and document the answer or the CA setup here.
+NOTE: The API server of a lab cluster usually presents a certificate signed by the cluster's internal CA (`kube-apiserver-lb-signer`). Without `--insecure-skip-tls-verify=true`, `oc login` stops with `The server uses a certificate signed by unknown authority`, so `myenv.sh` passes the flag. In production, pass the cluster CA with `--certificate-authority` instead.
 
 .Verify: You are logged in as a cluster administrator
 [%collapsible]
@@ -201,8 +205,12 @@ echo "CURRENT_IMAGE=${CURRENT_IMAGE}"
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+admin
+yes
+CURRENT_IMAGE=registry.access.redhat.com/ubi9/ubi-minimal@sha256:68b92732accbffdd8e2491b4c29976634ed92459f5779dac2aad670c967337c7
 ----
+
+The digest changes whenever Red Hat publishes a new UBI 9 minimal image.
 ====
 
 '''
@@ -210,7 +218,7 @@ TODO-CAPTURE: replace with the real output from the validation run
 [#install-operators]
 === 4. Install the RHACS, OpenShift GitOps, and RHACM operators
 
-// TODO-TIMING: measure subscription to CSV Succeeded for each operator; add an icon:clock[] line with a breakdown
+icon:clock[] ~1.5 minutes (subscription to CSV `Succeeded`: RHACS 41s, OpenShift GitOps 51s, RHACM 85s, running in parallel)
 
 *What:* Read the default channel of each operator from the cluster catalog and create the three subscriptions.
 
@@ -235,17 +243,23 @@ envsubst < 00-setup/05-gitops-operator.yaml | oc --context {hub-context} apply -
 envsubst < 00-setup/06-acm-operator.yaml | oc --context {hub-context} apply -f -
 ----
 
-Wait until each operator reports `Succeeded`:
+Wait until each operator reports `Succeeded`. The loop waits for the CSV that each subscription installed, because a namespace also lists copies of the CSVs of operators installed for all namespaces:
 
 [.console-input]
 [source,bash,subs="+macros,+attributes"]
 ----
-for ns in rhacs-operator openshift-gitops-operator open-cluster-management; do
-  until oc --context {hub-context} get csv -n "$ns" -o name 2>/dev/null | grep -q .; do sleep 5; done
-  oc --context {hub-context} wait csv --all -n "$ns" \
+for sub in rhacs-operator/rhacs-operator \
+           openshift-gitops-operator/openshift-gitops-operator \
+           open-cluster-management/advanced-cluster-management; do
+  ns=${sub%/*}; name=${sub#*/}
+  until csv=$(oc --context {hub-context} get subscriptions.operators.coreos.com "$name" -n "$ns" \
+      -o jsonpath='{.status.installedCSV}') && [ -n "$csv" ]; do sleep 5; done
+  oc --context {hub-context} wait csv/"$csv" -n "$ns" \
     --for=jsonpath='{.status.phase}'=Succeeded --timeout=600s
 done
 ----
+
+NOTE: Once RHACM is installed, the short name `subscription` resolves to the RHACM application `Subscription` (`subscriptions.apps.open-cluster-management.io`). The commands here use the full name `subscriptions.operators.coreos.com` for that reason.
 
 .Verify: Three operators are installed
 [%collapsible]
@@ -253,14 +267,18 @@ done
 [.console-input]
 [source,bash,subs="+macros,+attributes"]
 ----
-oc --context {hub-context} get subscription -A | grep -E 'rhacs-operator|openshift-gitops-operator|advanced-cluster-management'
+oc --context {hub-context} get subscriptions.operators.coreos.com -A | grep -E 'rhacs-operator|openshift-gitops-operator|advanced-cluster-management'
 ----
 
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+open-cluster-management     advanced-cluster-management   advanced-cluster-management   redhat-operators   release-2.17
+openshift-gitops-operator   openshift-gitops-operator     openshift-gitops-operator     redhat-operators   latest
+rhacs-operator              rhacs-operator                rhacs-operator                redhat-operators   stable
 ----
+
+The last column is the channel. It shows the catalog default at the time you install, so yours can differ.
 ====
 
 '''
@@ -268,8 +286,7 @@ TODO-CAPTURE: replace with the real output from the validation run
 [#install-acm-hub]
 === 5. Start the RHACM hub
 
-// TODO-TIMING: measure MultiClusterHub phase Running; add an icon:clock[] line
-// TODO-VALIDATE: if it takes 15 minutes or more, keep the IMPORTANT admonition below and state the measured time
+icon:clock[] ~5-6 minutes in the background (`local-cluster` joined 5 minutes 20 seconds after the custom resource was created)
 
 *What:* Create the `MultiClusterHub` custom resource.
 
@@ -281,9 +298,9 @@ TODO-CAPTURE: replace with the real output from the validation run
 oc --context {hub-context} apply -f 00-setup/07-multiclusterhub.yaml
 ----
 
-IMPORTANT: Do not wait here. Continue with the next sub-step and check the hub in sub-step 9.
+IMPORTANT: Do not wait here. Continue with the next sub-step and check the hub in sub-step 9. By then it has normally finished.
 
-.Verify: The hub is installing
+.Verify: The hub resource exists
 [%collapsible]
 ====
 [.console-input]
@@ -295,8 +312,11 @@ oc --context {hub-context} get multiclusterhub -n open-cluster-management
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+NAME              STATUS    AGE   CURRENTVERSION   DESIREDVERSION   MESSAGE
+multiclusterhub   Pending   114m  2.17.3           2.17.3           Not all hub components ready.
 ----
+
+The `STATUS` column goes through intermediate phases until it reaches `Running`, which you check in sub-step 9.
 ====
 
 '''
@@ -304,7 +324,7 @@ TODO-CAPTURE: replace with the real output from the validation run
 [#install-acs]
 === 6. Install ACS Central
 
-// TODO-TIMING: measure CR accepted, pods ready, and API answering; add an icon:clock[] line with a breakdown
+icon:clock[] ~1.5 minutes (custom resource `Deployed` after 18s, Central API answering after about 80s)
 
 *What:* Create the `stackrox` namespace and the `Central` custom resource.
 
@@ -329,7 +349,7 @@ source myenv.sh
 echo "ACS portal: https://${ACS_CENTRAL_ROUTE}"
 ----
 
-Open the portal URL in a browser and log in as `admin` with the password stored in `ROX_ADMIN_PASSWORD`.
+Open the portal URL in a browser and log in as `admin` with the password stored in `ACS_ADMIN_PASSWORD`.
 
 .Verify: Central answers on its route
 [%collapsible]
@@ -337,13 +357,16 @@ Open the portal URL in a browser and log in as `admin` with the password stored 
 [.console-input]
 [source,bash,subs="+macros,+attributes"]
 ----
-curl -sk -u "admin:${ROX_ADMIN_PASSWORD}" "https://${ACS_CENTRAL_ROUTE}/v1/metadata" | jq '{version, licenseStatus}'
+curl -sk -u "admin:${ACS_ADMIN_PASSWORD}" "https://${ACS_CENTRAL_ROUTE}/v1/metadata" | jq '{version, licenseStatus}'
 ----
 
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+{
+  "version": "4.11.4",
+  "licenseStatus": "VALID"
+}
 ----
 ====
 
@@ -352,7 +375,7 @@ TODO-CAPTURE: replace with the real output from the validation run
 [#roxctl-token]
 === 7. Download `roxctl` and create an API token
 
-// TODO-TIMING: measure; add an icon:clock[] line only if this takes more than 10 seconds
+icon:clock[] ~15 seconds (about 7s to download the 100 MB `roxctl` binary, 8s to source `myenv.sh` again)
 
 *What:* Download the `roxctl` binary that matches your Central version and create an API token with the Admin role.
 
@@ -362,17 +385,18 @@ TODO-CAPTURE: replace with the real output from the validation run
 [source,bash,subs="+macros,+attributes"]
 ----
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-curl -sk -u "admin:${ROX_ADMIN_PASSWORD}" -o roxctl \
-  "https://${ACS_CENTRAL_ROUTE}/api/cli/download/roxctl-${OS}"
+ARCH=$(uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
+curl -sk -u "admin:${ACS_ADMIN_PASSWORD}" -o roxctl \
+  "https://${ACS_CENTRAL_ROUTE}/api/cli/download/roxctl-${OS}-${ARCH}"
 chmod +x roxctl
 
-curl -sk -u "admin:${ROX_ADMIN_PASSWORD}" \
+curl -sk -u "admin:${ACS_ADMIN_PASSWORD}" \
   "https://${ACS_CENTRAL_ROUTE}/v1/apitokens/generate" \
   -d '{"name":"acs-image-workshop","roles":["Admin"]}' | jq -r .token > .rox-token
 source myenv.sh
 ----
 
-// TODO-VALIDATE: confirm the download path for Apple silicon workstations (roxctl-darwin vs another file name)
+Central serves `roxctl-linux-amd64`, `roxctl-linux-arm64`, `roxctl-darwin-amd64`, and `roxctl-darwin-arm64`. There is no plain `roxctl-darwin` file.
 
 NOTE: The workshop uses `--insecure-skip-tls-verify` with `roxctl` and `-k` with `curl` because Central uses a self-signed certificate. In production, configure the clients to trust the Central CA instead.
 
@@ -389,7 +413,18 @@ roxctl --insecure-skip-tls-verify central whoami
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+4.11.4
+UserID:
+	auth-token:<token-id>
+User name:
+	anonymous bearer token "acs-image-workshop" with roles [Admin] (jti: <token-id>, expires: 2027-10-08T16:21:33Z)
+Roles:
+	- Admin
+Access:
+	rw Access
+	rw Administration
+	rw Alert
+...
 ----
 ====
 
@@ -398,7 +433,7 @@ TODO-CAPTURE: replace with the real output from the validation run
 [#secure-cluster]
 === 8. Register the cluster as an ACS secured cluster
 
-// TODO-TIMING: measure init bundle, SecuredCluster Deployed, and cluster HEALTHY in ACS; add an icon:clock[] line with a breakdown
+icon:clock[] ~2 minutes (custom resource `Deployed` after 23s, Sensor ready after about 30s, the last of the three admission controller pods after 2 minutes)
 
 *What:* Generate an init bundle, apply it, and create the `SecuredCluster` custom resource with admission enforcement turned on.
 
@@ -432,8 +467,10 @@ The manifest sets three admission controller options:
 * `contactImageScanners: ScanIfMissing` lets the admission controller scan an image it has not seen before. Without it, decisions about CVEs and image age only use scan results that Central already has.
 * `bypass: BreakGlassAnnotation` allows the `admission.stackrox.io/break-glass` annotation used in xref:02-image-compliance.adoc#break-glass[Step 2]. Every bypass is recorded as a violation.
 
-// TODO-SCREENSHOT: 00-acs-clusters.png | Platform Configuration > Clusters | cluster row showing the workshop cluster as healthy
-// TODO-VALIDATE: confirm the sidebar label "Platform Configuration > Clusters" and the health column names in the installed version
+In the ACS portal, open *Platform Configuration > Clusters*. The *Cluster status* column shows `Healthy` once Sensor is connected.
+
+.Platform Configuration > Clusters - the workshop cluster is healthy and up to date with Central
+image::00-acs-clusters.png[ACS Clusters page listing the cluster production with cluster status Healthy and sensor upgrade status Up to date with Central]
 
 .Verify: The cluster is healthy in ACS
 [%collapsible]
@@ -449,7 +486,8 @@ oc --context {hub-context} get validatingwebhookconfigurations | grep -i stackro
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+production	HEALTHY
+stackrox                                                                          2          112m
 ----
 ====
 
@@ -458,8 +496,7 @@ TODO-CAPTURE: replace with the real output from the validation run
 [#check-scanner]
 === 9. Check the scanner and the RHACM hub
 
-// TODO-TIMING: measure until the scan returns CVEs and until MultiClusterHub is Running; add an icon:clock[] line
-// TODO-VALIDATE: if the vulnerability database load takes 15 minutes or more, add an IMPORTANT admonition with the measured time
+icon:clock[] ~40 seconds for the first scan of the image (later scans of the same image return at once)
 
 *What:* Scan a known old image and wait for the RHACM hub to reach the `Running` phase.
 
@@ -474,7 +511,7 @@ oc --context {hub-context} wait multiclusterhub/multiclusterhub -n open-cluster-
   --for=jsonpath='{.status.phase}'=Running --timeout=1800s
 ----
 
-If the scan summary shows zero vulnerabilities, wait a few minutes and run it again with `--force`.
+If the scan summary shows zero vulnerabilities, wait a few minutes and run it again with `--force`. On the validation cluster the scanner finished loading its vulnerability data about 11 minutes after the `Central` resource was created, so a scan right after sub-step 8 can still be early.
 
 .Verify: The scan returns CVEs and the hub is running
 [%collapsible]
@@ -486,10 +523,30 @@ oc --context {hub-context} get multiclusterhub -n open-cluster-management
 oc --context {hub-context} get managedcluster local-cluster
 ----
 
+The scan summary from the first command looks like this:
+
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+{
+  "CRITICAL": 0,
+  "IMPORTANT": 84,
+  "LOW": 286,
+  "MODERATE": 412,
+  "TOTAL-COMPONENTS": 112,
+  "TOTAL-VULNERABILITIES": 782
+}
+----
+
+The two `get` commands show the hub and `local-cluster`:
+
+[.console-output]
+[source,bash]
+----
+NAME              STATUS    AGE    CURRENTVERSION   DESIREDVERSION   MESSAGE
+multiclusterhub   Running   115m   2.17.3           2.17.3           All hub components ready.
+NAME            HUB ACCEPTED   MANAGED CLUSTER URLS                JOINED   AVAILABLE   AGE
+local-cluster   true           https://api.<cluster-domain>:6443   True     True        112m
 ----
 ====
 
@@ -512,10 +569,11 @@ Use this path when someone already ran Option A on the cluster.
 ----
 source myenv.sh
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-curl -sk -u "admin:${ROX_ADMIN_PASSWORD}" -o roxctl \
-  "https://${ACS_CENTRAL_ROUTE}/api/cli/download/roxctl-${OS}"
+ARCH=$(uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/')
+curl -sk -u "admin:${ACS_ADMIN_PASSWORD}" -o roxctl \
+  "https://${ACS_CENTRAL_ROUTE}/api/cli/download/roxctl-${OS}-${ARCH}"
 chmod +x roxctl
-curl -sk -u "admin:${ROX_ADMIN_PASSWORD}" \
+curl -sk -u "admin:${ACS_ADMIN_PASSWORD}" \
   "https://${ACS_CENTRAL_ROUTE}/v1/apitokens/generate" \
   -d '{"name":"acs-image-workshop","roles":["Admin"]}' | jq -r .token > .rox-token
 source myenv.sh
@@ -536,7 +594,22 @@ roxctl --insecure-skip-tls-verify central whoami
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+NAME                                                     VERSION   ADMINPASSWORD   MESSAGE                                         PROGRESSING   AVAILABLE
+central.platform.stackrox.io/stackrox-central-services   4.11.4    acs-password    StackRox Central Services has been installed.   False         True
+
+NAME                                                                    VERSION   MESSAGE                                                 PROGRESSING   AVAILABLE
+securedcluster.platform.stackrox.io/stackrox-secured-cluster-services   4.11.4    StackRox Secured Cluster Services has been installed.   False         True
+NAME              STATUS    AGE    CURRENTVERSION   DESIREDVERSION   MESSAGE
+multiclusterhub   Running   115m   2.17.3           2.17.3           All hub components ready.
+NAME               AGE
+openshift-gitops   124m
+UserID:
+	auth-token:<token-id>
+User name:
+	anonymous bearer token "acs-image-workshop" with roles [Admin] (jti: <token-id>, expires: 2027-10-08T16:21:33Z)
+Roles:
+	- Admin
+...
 ----
 ====
 

@@ -3,8 +3,8 @@
 :title: RHACS Image Security Workshop
 :hub-context: hub
 :acs-min-version: 4.9
-// TODO-VALIDATE: replace the four values below with the versions installed during the validation run
-:ocp-version: 4.x
-:acs-version: 4.x
-:acm-version: 2.x
-:gitops-version: 1.x
+// Versions installed on the validation cluster
+:ocp-version: 4.20
+:acs-version: 4.11
+:acm-version: 2.17
+:gitops-version: 1.22

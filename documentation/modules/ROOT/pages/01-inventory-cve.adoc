@@ -18,7 +18,7 @@ Sensor watches the workloads on the cluster and sends their image references to 
 [#deploy-workloads]
 === 1. Deploy two workloads
 
-// TODO-TIMING: measure apply to both Deployments Available (includes image pulls); add an icon:clock[] line only if more than 10 seconds
+icon:clock[] ~15 seconds (both images are pulled on first use)
 
 *What:* Create the `acs-image-demo` namespace with a legacy workload and a current workload.
 
@@ -48,7 +48,9 @@ oc --context {hub-context} get deploy -n acs-image-demo
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+NAME          READY   UP-TO-DATE   AVAILABLE   AGE
+current-app   1/1     1            1           11s
+legacy-app    1/1     1            1           12s
 ----
 ====
 
@@ -81,10 +83,23 @@ The legacy pod shows the tag `8.4` in its spec and a digest in its image ID. The
 .Verify: ACS lists both images
 [%collapsible]
 ====
+The `oc` command prints the tag `8.4` for the legacy pod and a digest for both image IDs (trimmed):
+
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+POD                            IMAGE                                                       IMAGE_ID
+current-app-5cb59559dc-xs76p   registry.access.redhat.com/ubi9/ubi-minimal@sha256:68b9...  registry.access.redhat.com/ubi9/ubi-minimal@sha256:68b9...
+legacy-app-5964d57774-9c485    registry.access.redhat.com/ubi8/ubi:8.4                     registry.access.redhat.com/ubi8/ubi@sha256:53d3a083...
+----
+
+The ACS query returns the same two images, each with its digest as the ID:
+
+[.console-output]
+[source,bash]
+----
+registry.access.redhat.com/ubi8/ubi:8.4	sha256:53d3a0837cf04ba4c687ddb39b487dc86efdbc14bd528778a7fa522637b1a3a0
+registry.access.redhat.com/ubi9/ubi-minimal@sha256:68b92732accbffdd8e2491b4c29976634ed92459f5779dac2aad670c967337c7	sha256:68b92732accbffdd8e2491b4c29976634ed92459f5779dac2aad670c967337c7
 ----
 
 If the ACS list is empty, Sensor has not reported the workloads yet. Wait 30 seconds and run the `curl` command again.
@@ -99,28 +114,25 @@ If the ACS list is empty, Sensor has not reported the workloads yet. Wait 30 sec
 
 *Why:* The full CVE list of an old image is long. The fixable, high-severity subset is the list an application team can act on.
 
-In the ACS portal, go to *Vulnerability Management > Results* and open the *User Workloads* tab. Add the filter *Namespace* `acs-image-demo`, then the filters *CVE status* `Fixable` and *Severity* `Critical` and `Important`. Switch between the CVE, Image, and Deployment views to see the same findings grouped three ways.
+In the ACS portal, go to *Vulnerability Management > Results*. The page *User workload vulnerabilities* opens on the *User Workloads* tab, with the default filters *CVE severity* `Critical` and `Important` and *CVE status* `Fixable` already set. In the filter bar, select the entity *Namespace*, keep the attribute *Name*, type `acs-image-demo`, and press kbd:[Enter]. The toggle above the table switches between the CVE, Image, and Deployment views of the same findings.
 
-// TODO-SCREENSHOT: 01-workload-cves.png | Vulnerability Management > Results > User Workloads | filters Namespace=acs-image-demo, CVE status=Fixable, Severity=Critical+Important
-// TODO-VALIDATE: confirm the exact labels of the sidebar entry, the tab, and the three filters in the installed version
+.Vulnerability Management > Results - fixable Critical and Important CVEs in acs-image-demo, Image view
+image::01-workload-cves.png[User workload vulnerabilities page filtered to namespace acs-image-demo, showing 71 CVEs in one image, ubi8/ubi:8.4]
 
-Open one CVE and look at the *Fixed by* column. It names the package version that removes the CVE.
+Switch to the CVE view, open one CVE, and expand the image row. The *CVE fixed in* column names the package version that removes the CVE, and *Advisory* names the Red Hat erratum that ships it.
 
 .Verify: Only the legacy image has fixable Critical or Important CVEs
 [%collapsible]
 ====
-The filtered Image view lists `registry.access.redhat.com/ubi8/ubi:8.4`.
+The filtered view lists 71 CVEs, 1 image (`ubi8/ubi:8.4` in `registry.access.redhat.com`), and 1 deployment. For the CVE `CVE-2018-25032`, the expanded row showed the component `zlib` at version `1.2.11-17.el8`, fixed in `0:1.2.11-18.el8_5` by `RHSA-2022:1642`.
 
-// TODO-VALIDATE: record whether the current UBI 9 minimal image also shows fixable Important CVEs on the validation date; if it does, add a NOTE here explaining it
-TODO-CAPTURE: describe what the filtered view showed during the validation run
+NOTE: The current UBI 9 minimal image is not in the list, although it is not free of CVEs. On the validation date it had six Important CVEs and none of them had a fix yet. Unfixed CVEs drop out of a *Fixable* filter, and they do not match the policy you add in sub-step 5.
 ====
 
 '''
 
 [#roxctl-scan]
 === 4. Scan both images from the CLI
-
-// TODO-TIMING: measure; add an icon:clock[] line only if more than 10 seconds
 
 *What:* Use `roxctl image scan` to print the Critical and Important CVEs of both images and their severity counts.
 
@@ -145,19 +157,53 @@ done
 .Verify: The legacy image has far more CVEs than the current one
 [%collapsible]
 ====
+The table starts with a summary line, then one row per CVE. Further right, each row also has the fixed version and the advisory (cut on the right here):
+
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+Scan results for image: registry.access.redhat.com/ubi8/ubi:8.4
+(TOTAL-COMPONENTS: 53, TOTAL-VULNERABILITIES: 84, LOW: 0, MODERATE: 0, IMPORTANT: 84, CRITICAL: 0)
+
++----------------------------------------+-------------------+-----------------+-----------+------+------------
+|               COMPONENT                |      VERSION      |       CVE       | SEVERITY  | CVSS |
++----------------------------------------+-------------------+-----------------+-----------+------+------------
+|                 brotli                 |    1.0.6-3.el8    |  CVE-2025-6176  | IMPORTANT | 7.5  |
++----------------------------------------+-------------------+-----------------+-----------+------+------------
 ----
+
+The loop prints the severity counts of both images:
+
+[.console-output]
+[source,bash]
+----
+== registry.access.redhat.com/ubi8/ubi:8.4
+{
+  "CRITICAL": 0,
+  "IMPORTANT": 84,
+  "LOW": 286,
+  "MODERATE": 412,
+  "TOTAL-COMPONENTS": 112,
+  "TOTAL-VULNERABILITIES": 782
+}
+== registry.access.redhat.com/ubi9/ubi-minimal@sha256:68b92732accbffdd8e2491b4c29976634ed92459f5779dac2aad670c967337c7
+{
+  "CRITICAL": 0,
+  "IMPORTANT": 6,
+  "LOW": 56,
+  "MODERATE": 68,
+  "TOTAL-COMPONENTS": 36,
+  "TOTAL-VULNERABILITIES": 130
+}
+----
+
+The numbers change as Red Hat publishes new CVE data.
 ====
 
 '''
 
 [#apply-policy]
 === 5. Apply the CVE policy
-
-// TODO-TIMING: measure CR apply to AcceptedByCentral=True; add an icon:clock[] line only if more than 10 seconds
 
 *What:* Create a `SecurityPolicy` that flags images with a fixable CVE of severity Important or higher in `acs-image-demo`.
 
@@ -195,16 +241,16 @@ True
 [#violations]
 === 6. Review the violations
 
-// TODO-TIMING: measure policy accepted to violation visible; add an icon:clock[] line only if more than 10 seconds
-
 *What:* List the violations of the new policy in the portal and through the API.
 
 *Why:* The violation names the workload, the CVEs that matched, and the fix, which is what you hand to the team that owns the image.
 
-In the portal, go to *Violations* and filter by *Namespace* `acs-image-demo`. Open the violation for `legacy-app` and read the matched CVEs.
+In the portal, go to *Violations*. In the filter bar of *User workload violations*, select the entity *Namespace* and enter `acs-image-demo`, then select the entity *Policy* and enter `Workshop`. Open the violation for `legacy-app` and read the matched CVEs.
 
-// TODO-SCREENSHOT: 01-violations.png | Violations | filter Namespace=acs-image-demo, policy "Workshop - Fixable CVEs of severity Important or higher"
-// TODO-VALIDATE: confirm the Violations page filter labels in the installed version
+.Violations - the workshop CVE policy flags legacy-app
+image::01-violations.png[User workload violations filtered by namespace acs-image-demo and policy name Workshop, with one violation for legacy-app]
+
+Without the policy filter, the namespace shows several more violations from built-in ACS policies, such as *Fixable Severity at least Important* and *Red Hat Package Manager in Image*.
 
 [.console-input]
 [source,bash,subs="+macros,+attributes"]
@@ -214,15 +260,13 @@ curl -skG -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROU
   | jq -r '.alerts[] | select(.policy.name | startswith("Workshop")) | [.policy.name, .deployment.name, .state] | @tsv'
 ----
 
-// TODO-VALIDATE: confirm the field names .policy.name, .deployment.name, and .state in the /v1/alerts response
-
 .Verify: Only `legacy-app` violates the policy
 [%collapsible]
 ====
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+Workshop - Fixable CVEs of severity Important or higher	legacy-app	ACTIVE
 ----
 ====
 
@@ -231,28 +275,35 @@ TODO-CAPTURE: replace with the real output from the validation run
 [#image-check]
 === 7. Run a build-time check
 
-// TODO-TIMING: measure; add an icon:clock[] line only if more than 10 seconds
-
-*What:* Run `roxctl image check` against the legacy image and print the exit code.
+*What:* Run `roxctl image check` against the legacy image, print the exit code, and list each violated policy with its `failingCheck` flag.
 
 *Why:* This is the same check a CI pipeline runs before it pushes an image. It shows that the policy also applies at build time.
 
 [.console-input]
 [source,bash,subs="+macros,+attributes"]
 ----
-roxctl --insecure-skip-tls-verify image check --image registry.access.redhat.com/ubi8/ubi:8.4 --output table
+roxctl --insecure-skip-tls-verify image check --image registry.access.redhat.com/ubi8/ubi:8.4 \
+  --output json > /tmp/image-check.json
 echo "exit code: $?"
+jq -r '.results[].violatedPolicies[] | [.name, .severity, .failingCheck] | @tsv' /tmp/image-check.json
 ----
 
-The table lists the workshop policy, and the exit code is `0`. `roxctl image check` only fails when a violated policy has the "fail build" enforcement action, which you add in Step 2.
+`roxctl image check` fails, with exit code `1`, when a violated policy has the "fail build" enforcement action (`failingCheck` is `true`). The workshop policy is listed with `false`, because it has no enforcement actions yet. You add them in Step 2.
 
-.Verify: The policy is listed and the exit code is 0
+The exit code is already `1`, because the built-in policy *Fixable Severity at least Important* ships with the "fail build" action and the legacy image violates it. A pipeline that runs `roxctl image check` against a default Central fails on this image before you change anything.
+
+.Verify: The workshop policy is listed and does not fail the check
 [%collapsible]
 ====
 [.console-output]
 [source,bash]
 ----
-TODO-CAPTURE: replace with the real output from the validation run
+exit code: 1
+Fixable Severity at least Important	HIGH	true
+Workshop - Fixable CVEs of severity Important or higher	HIGH	false
+90-Day Image Age	LOW	false
+Docker CIS 4.1: Ensure That a User for the Container Has Been Created	LOW	false
+Red Hat Package Manager in Image	LOW	false
 ----
 ====
 

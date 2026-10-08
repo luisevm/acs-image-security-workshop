@@ -25,11 +25,12 @@ data:
             body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
             try:
                 alert = json.loads(body).get("alert", {})
+                # DEPLOY is the default enum value, so ACS leaves lifecycleStage out for it
                 print("ALERT policy=%r deployment=%r namespace=%r stage=%r" % (
                     alert.get("policy", {}).get("name"),
                     alert.get("deployment", {}).get("name"),
                     alert.get("deployment", {}).get("namespace"),
-                    alert.get("lifecycleStage")), flush=True)
+                    alert.get("lifecycleStage", "DEPLOY")), flush=True)
             except ValueError:
                 print("RAW %s" % body[:500], flush=True)
             self.send_response(200)
