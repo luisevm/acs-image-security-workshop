@@ -350,7 +350,7 @@ no</code></pre>
 <div class="content">
 <div class="listingblock console-input">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub get application acs-image-policies -n openshift-gitops \
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub get applications.argoproj.io acs-image-policies -n openshift-gitops \
   -o jsonpath='{.status.sync.status} {.status.health.status}{"\n"}{.status.resources[*].name}{"\n"}'</code></pre>
 </div>
 </div>
@@ -378,7 +378,7 @@ sed -i.bak -e 's/"365"/"3650"/' -e 's/ 365 days/ 3650 days/g' "$F" &amp;&amp; rm
 git diff --stat
 git commit -am "Raise the workshop image age limit to 3650 days"
 git push origin "${GIT_REVISION}"
-oc --context hub annotate application acs-image-policies -n openshift-gitops \
+oc --context hub annotate applications.argoproj.io acs-image-policies -n openshift-gitops \
   argocd.argoproj.io/refresh=hard --overwrite</code></pre>
 </div>
 </div>
@@ -473,7 +473,7 @@ done</code></pre>
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">git rm 03-policies-as-code/policies/02-policy-trusted-registries.yaml
 git commit -m "Remove the workshop registry policy"
 git push origin "${GIT_REVISION}"
-oc --context hub annotate application acs-image-policies -n openshift-gitops \
+oc --context hub annotate applications.argoproj.io acs-image-policies -n openshift-gitops \
   argocd.argoproj.io/refresh=hard --overwrite</code></pre>
 </div>
 </div>
@@ -494,7 +494,7 @@ curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUT
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">git revert --no-edit HEAD
 git push origin "${GIT_REVISION}"
-oc --context hub annotate application acs-image-policies -n openshift-gitops \
+oc --context hub annotate applications.argoproj.io acs-image-policies -n openshift-gitops \
   argocd.argoproj.io/refresh=hard --overwrite</code></pre>
 </div>
 </div>
@@ -624,7 +624,7 @@ oc --context hub annotate application acs-image-policies -n openshift-gitops \
 <div class="listingblock console-input">
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># 1. Stop Argo CD from managing the policies (no finalizer, so the policies stay)
-oc --context hub delete application acs-image-policies -n openshift-gitops --ignore-not-found --wait
+oc --context hub delete applications.argoproj.io acs-image-policies -n openshift-gitops --ignore-not-found --wait
 
 # 2. Remove the Argo CD permissions
 oc --context hub delete -f 03-policies-as-code/01-argocd-rbac.yaml --ignore-not-found
