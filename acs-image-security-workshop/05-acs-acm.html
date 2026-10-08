@@ -638,6 +638,9 @@ oc --context hub wait securedcluster/stackrox-secured-cluster-services -n stackr
   --for=condition=Deployed --timeout=900s</code></pre>
 </div>
 </div>
+<div class="paragraph">
+<p>Deleting the policy in <code>acs-policies</code> also removes its copy in the <code>local-cluster</code> namespace. <code>oc apply</code> of the setup <code>SecuredCluster</code> prints a warning about the missing <code>last-applied-configuration</code> annotation, because RHACM created the current resource. You can ignore it.</p>
+</div>
 </div>
 </div>
 <nav class="pagination">

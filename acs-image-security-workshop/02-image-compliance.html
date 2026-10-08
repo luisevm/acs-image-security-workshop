@@ -901,10 +901,15 @@ oc --context hub wait deploy --all -n acs-image-demo --for=condition=Available -
 # 5. Notifier, then the receiver
 NOTIFIER_ID=$(curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/notifiers" \
   | jq -r '.notifiers[] | select(.name=="workshop-alert-sink") | .id')
-[ -n "${NOTIFIER_ID}" ] &amp;&amp; curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" \
-  -X DELETE "https://${ACS_CENTRAL_ROUTE}/v1/notifiers/${NOTIFIER_ID}"
+# Retries until config-controller has removed the notifier from the CVE policy in Central
+[ -n "${NOTIFIER_ID}" ] &amp;&amp; until [ "$(curl -sk -o /dev/null -w '%{http_code}' \
+  -H "Authorization: Bearer ${ROX_API_TOKEN}" -X DELETE \
+  "https://${ACS_CENTRAL_ROUTE}/v1/notifiers/${NOTIFIER_ID}")" = 200 ]; do sleep 2; done
 oc --context hub delete -f 02-image-compliance/01-alert-sink.yaml --ignore-not-found --wait</code></pre>
 </div>
+</div>
+<div class="paragraph">
+<p><code>oc apply</code> of the Step 1 file removes the <code>notifiers</code> field from the CVE policy, because <code>oc apply</code> deletes fields that were in the last applied version and are missing from the new file. After that, nothing in Central refers to the notifier and the delete succeeds.</p>
 </div>
 </div>
 </div>
