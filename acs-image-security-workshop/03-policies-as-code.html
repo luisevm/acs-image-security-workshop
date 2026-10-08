@@ -244,7 +244,7 @@
 <h2 id="_how_it_works"><a class="anchor" href="#_how_it_works"></a>How it works</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Two controllers work in sequence. Argo CD keeps the <code>SecurityPolicy</code> custom resources in <code>stackrox</code> equal to the files in Git. The RHACS <code>config-controller</code> copies each custom resource into Central and marks the policy in the portal as managed externally. A change that starts in Git reaches Central through both controllers. A manual change to a custom resource is reverted by Argo CD self-heal, and a change made in the portal is overwritten by <code>config-controller</code>.</p>
+<p>Two controllers work in sequence. Argo CD keeps the <code>SecurityPolicy</code> custom resources in <code>stackrox</code> equal to the files in Git. The RHACS <code>config-controller</code> copies each custom resource into Central and marks the policy in the portal as managed externally. A change that starts in Git reaches Central through both controllers. A manual change to a custom resource is reverted by Argo CD self-heal. A change made in the portal stays in Central until the custom resource changes again, for example with the next commit. <code>config-controller</code> then writes the whole policy from the custom resource and the portal change is gone.</p>
 </div>
 <div class="paragraph">
 <p>The files in <code>03-policies-as-code/policies/</code> carry the same names and content as <code>02-image-compliance/enforce/</code>, so Argo CD adopts the existing resources without changing how ACS behaves.</p>
@@ -286,8 +286,13 @@ The workshop assumes a public fork. For a private repository, add its credential
 <div class="content">
 <div class="listingblock console-output">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">https://github.com/luisevm/acs-image-security-workshop.git main
+07bddd38fa092cd5c9565971fbe01b7ce4737110	refs/heads/main
+Everything up-to-date</code></pre>
 </div>
+</div>
+<div class="paragraph">
+<p>Your output shows your fork and the latest commit on your branch.</p>
 </div>
 </div>
 </details>
@@ -307,20 +312,23 @@ The workshop assumes a public fork. For a private repository, add its credential
 </div>
 </div>
 <details>
-<summary class="title">Verify: Argo CD can create policies and cannot read secrets</summary>
+<summary class="title">Verify: Argo CD can create policies</summary>
 <div class="content">
 <div class="listingblock console-input">
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">SA=system:serviceaccount:openshift-gitops:openshift-gitops-argocd-application-controller
 oc --context hub auth can-i create securitypolicies.config.stackrox.io -n stackrox --as="${SA}"
-oc --context hub auth can-i get secrets -n stackrox --as="${SA}"</code></pre>
+oc --context hub auth can-i delete deployments -n stackrox --as="${SA}"</code></pre>
 </div>
 </div>
 <div class="listingblock console-output">
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">yes
-no</code></pre>
+yes</code></pre>
 </div>
+</div>
+<div class="paragraph">
+<p>The first answer comes from the Role you just created. The second answer is <code>no</code> on a default OpenShift GitOps installation, whose cluster role lets the controller read every resource but not change it outside a short list of API groups. The validation cluster answered <code>yes</code>, because its provisioning also bound the controller to <code>cluster-admin</code>. Check <code>oc --context hub get clusterrolebinding -o wide | grep argocd-application-controller</code> to see what your cluster grants.</p>
 </div>
 </div>
 </details>
@@ -328,6 +336,9 @@ no</code></pre>
 </div>
 <div class="sect2">
 <h3 id="create-app"><a class="anchor" href="#create-app"></a>3. Hand the policies to Argo CD</h3>
+<div class="paragraph">
+<p><span class="icon"><i class="fa fa-clock"></i></span> ~25 seconds (Application created to first sync finished)</p>
+</div>
 <div class="paragraph">
 <p><strong>What:</strong> Create an Argo CD Application that syncs <code>03-policies-as-code/policies/</code> from your fork into <code>stackrox</code>.</p>
 </div>
@@ -345,6 +356,15 @@ no</code></pre>
 <div class="paragraph">
 <p>The Application has automated sync with <code>prune</code> and <code>selfHeal</code> turned on. It has no resources finalizer, so deleting the Application later leaves the policies in place.</p>
 </div>
+<div class="paragraph">
+<p>To see the Application in the Argo CD UI, open the application launcher (the grid icon in the top bar of the OpenShift console) and select <strong>Cluster Argo CD</strong>. Click <strong>LOG IN VIA OPENSHIFT</strong>. The first time, OpenShift asks you to authorize the service account <code>openshift-gitops-argocd-dex-server</code>: click <strong>Allow selected permissions</strong>. Then open the tile <code>acs-image-policies</code>.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="_images/03-argocd-application.png" alt="Argo CD application tree with acs-image-policies connected to four synced securitypolicy resources">
+</div>
+<div class="title">Figure 1. Cluster Argo CD - acs-image-policies manages the four SecurityPolicy resources</div>
+</div>
 <details>
 <summary class="title">Verify: The Application is synced and manages the four policies</summary>
 <div class="content">
@@ -356,8 +376,21 @@ no</code></pre>
 </div>
 <div class="listingblock console-output">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">Synced Healthy
+workshop-fixable-important-cves workshop-image-age workshop-latest-tag workshop-trusted-registries</code></pre>
 </div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+The commands in this step use the full resource name <code>applications.argoproj.io</code>. With RHACM installed, the short name <code>application</code> resolves to the Kubernetes <code>Application</code> resource (<code>applications.app.k8s.io</code>), and <code>oc get application acs-image-policies</code> returns <code>NotFound</code>.
+</td>
+</tr>
+</table>
 </div>
 </div>
 </details>
@@ -365,6 +398,9 @@ no</code></pre>
 </div>
 <div class="sect2">
 <h3 id="git-change"><a class="anchor" href="#git-change"></a>4. Change a policy in Git</h3>
+<div class="paragraph">
+<p><span class="icon"><i class="fa fa-clock"></i></span> ~15 seconds (custom resource updated 8s after the push, <code>legacy-app</code> violation resolved 12s after the commit)</p>
+</div>
 <div class="paragraph">
 <p><strong>What:</strong> Raise the image-age limit from 365 to 3650 days with a commit, then ask Argo CD to refresh.</p>
 </div>
@@ -396,14 +432,18 @@ oc --context hub annotate applications.argoproj.io acs-image-policies -n openshi
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub get securitypolicy workshop-image-age -n stackrox \
   -o jsonpath='{.spec.policySections[0].policyGroups[0].values[0].value}{"\n"}'
 curl -skG -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/alerts" \
-  --data-urlencode "query=Namespace:acs-image-demo" \
+  --data-urlencode "query=Namespace:acs-image-demo+Violation State:RESOLVED" \
   | jq -r '.alerts[] | select(.policy.name | startswith("Workshop - Image older")) | [.policy.name, .deployment.name, .state] | @tsv'</code></pre>
 </div>
 </div>
 <div class="listingblock console-output">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">3650
+Workshop - Image older than 365 days	legacy-app	RESOLVED</code></pre>
 </div>
+</div>
+<div class="paragraph">
+<p>The resolved violation keeps the policy name it had when it was raised. Central re-evaluated <code>legacy-app</code> as soon as it received the changed policy. Without the <code>Violation State:RESOLVED</code> filter, the list also shows the <code>ATTEMPTED</code> violation from the rejected scale request in Step 2, which stays on record.</p>
 </div>
 </div>
 </details>
@@ -430,9 +470,24 @@ done</code></pre>
 <details>
 <summary class="title">Verify: The severity returns to MEDIUM_SEVERITY</summary>
 <div class="content">
+<div class="paragraph">
+<p>The patch shows up once, and Argo CD has reverted it by the next check, five seconds later:</p>
+</div>
 <div class="listingblock console-output">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">TODO-CAPTURE: replace with the real output from the validation run</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">securitypolicy.config.stackrox.io/workshop-latest-tag patched
+LOW_SEVERITY
+MEDIUM_SEVERITY
+MEDIUM_SEVERITY
+MEDIUM_SEVERITY
+MEDIUM_SEVERITY
+MEDIUM_SEVERITY
+MEDIUM_SEVERITY
+MEDIUM_SEVERITY
+MEDIUM_SEVERITY
+MEDIUM_SEVERITY
+MEDIUM_SEVERITY
+MEDIUM_SEVERITY</code></pre>
 </div>
 </div>
 </div>
@@ -448,13 +503,28 @@ done</code></pre>
 <p><strong>Why:</strong> Participants who use the portal need to know that a policy managed as code cannot be changed there for good.</p>
 </div>
 <div class="paragraph">
-<p>In the ACS portal, go to <strong>Platform Configuration &gt; Policy Management</strong>, search for <code>Workshop</code>, and open <strong>Workshop - Image uses the latest tag</strong>. The policy is marked as managed externally. Try <strong>Actions &gt; Edit policy</strong> and read the message.</p>
+<p>In the ACS portal, go to <strong>Platform Configuration &gt; Policy Management</strong> and filter by the policy name <code>Workshop</code>. The <strong>Origin</strong> column shows <strong>Externally managed</strong> for the four workshop policies. Open <strong>Workshop - Image uses the latest tag</strong>, then open <strong>Actions</strong>. <strong>Edit policy</strong> is available, and the delete entry is disabled with the text <strong>Cannot delete an externally managed policy</strong>. Select <strong>Edit policy</strong> and read the warning at the top of the page, then click <strong>Cancel</strong>.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="_images/03-policy-managed-externally.png" alt="Edit page of the policy Workshop - Image uses the latest tag with the warning Externally managed policy">
+</div>
+<div class="title">Figure 2. Policy Management - editing an externally managed policy</div>
 </div>
 <details>
 <summary class="title">Verify: The portal shows the policy as externally managed</summary>
 <div class="content">
 <div class="paragraph">
-<p>TODO-CAPTURE: describe the badge and the edit behavior seen during the validation run</p>
+<p>The edit page starts with this warning:</p>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">Externally managed policy
+You are editing a policy that is managed externally. Any local changes to this policy will be automatically overwritten during the next resync.</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The next resync happens when the custom resource changes, not on a timer you can count on. On the validation cluster, a severity change saved in Central was still in place 10 minutes later. It disappeared about 6 seconds after the next change to the custom resource&#8217;s spec. A change to an annotation alone did not trigger it.</p>
 </div>
 </div>
 </details>
@@ -486,6 +556,18 @@ oc --context hub annotate applications.argoproj.io acs-image-policies -n openshi
 curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/policies" \
   | jq -r '.policies[].name' | grep '^Workshop - '</code></pre>
 </div>
+</div>
+<div class="admonitionblock warning">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-warning" title="Warning"></i>
+</td>
+<td class="content">
+On the validation cluster (RHACS 4.11.4), the policy disappeared from Central within seconds, but the custom resource stayed in the cluster with a deletion timestamp. <code>config-controller</code> deleted the policy in Central, failed to remove its finalizer because of an update conflict, and then kept failing with <code>policy "" is not externally managed and can be deleted only from central</code>. A plain <code>oc delete</code> of a test policy did not hit this. If <code>oc get securitypolicy workshop-trusted-registries -n stackrox</code> still returns the resource after a minute while the policy is gone from Central, remove the finalizer by hand: <code>oc --context hub patch securitypolicy workshop-trusted-registries -n stackrox --type=json -p '[{"op":"remove","path":"/metadata/finalizers"}]'</code>. Otherwise Argo CD cannot create the resource again in the next command.
+</td>
+</tr>
+</table>
 </div>
 <div class="paragraph">
 <p>Restore it:</p>
@@ -539,7 +621,7 @@ oc --context hub annotate applications.argoproj.io acs-image-policies -n openshi
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Someone can edit or delete a policy and nothing puts it back</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Argo CD self-heal reverts changes to the custom resources, and <code>config-controller</code> overwrites portal edits</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Argo CD self-heal reverts changes to the custom resources, the portal cannot delete an externally managed policy, and the next change in Git overwrites portal edits</p></td>
 </tr>
 </tbody>
 </table>
