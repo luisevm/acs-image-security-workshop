@@ -1,0 +1,45 @@
+# 03-current-app.yaml
+# Purpose: Workload built on the current UBI 9 minimal image, pinned by digest.
+# Apply with envsubst: CURRENT_IMAGE is resolved in Step 1 from the ":latest" tag.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: current-app
+  namespace: acs-image-demo
+  labels:
+    app: current-app
+    app.kubernetes.io/part-of: acs-image-workshop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: current-app
+  template:
+    metadata:
+      labels:
+        app: current-app
+        app.kubernetes.io/part-of: acs-image-workshop
+    spec:
+      containers:
+        - name: app
+          image: ${CURRENT_IMAGE}
+          command: ["/bin/sh", "-c", "sleep infinity"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          readinessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "true"]
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "true"]
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]

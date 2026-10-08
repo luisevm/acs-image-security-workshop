@@ -1,0 +1,8 @@
+# 02-stackrox-namespace.yaml
+# Purpose: Namespace for ACS Central and the secured cluster services (same cluster).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: stackrox
+  labels:
+    app.kubernetes.io/part-of: acs-image-workshop

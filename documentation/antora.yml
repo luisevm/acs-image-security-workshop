@@ -1,0 +1,6 @@
+name: acs-image-security-workshop
+title: "RHACS Image Security Workshop"
+version: master
+nav:
+  - modules/ROOT/nav.adoc
+start_page: ROOT:index.adoc

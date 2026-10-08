@@ -1,0 +1,43 @@
+# 03-policy-acs-baseline.yaml
+# Purpose: ACM governance policy that keeps ACS installed on every selected cluster
+# with admission enforcement on, so the image policies from Steps 1-3 always apply.
+# Apply with envsubst: ACS_CLUSTER_NAME must match the name used in Step 0.
+# remediationAction enforce: ACM recreates or corrects the SecuredCluster on drift.
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: acs-image-enforcement-baseline
+  namespace: acs-policies
+  labels:
+    app.kubernetes.io/part-of: acs-image-workshop
+  annotations:
+    policy.open-cluster-management.io/standards: NIST SP 800-53
+    policy.open-cluster-management.io/categories: CM Configuration Management
+    policy.open-cluster-management.io/controls: CM-2 Baseline Configuration
+spec:
+  remediationAction: enforce
+  disabled: false
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: acs-secured-cluster-admission
+        spec:
+          remediationAction: enforce
+          severity: high
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: platform.stackrox.io/v1alpha1
+                kind: SecuredCluster
+                metadata:
+                  name: stackrox-secured-cluster-services
+                  namespace: stackrox
+                spec:
+                  clusterName: ${ACS_CLUSTER_NAME}
+                  centralEndpoint: central.stackrox.svc:443
+                  admissionControl:
+                    enforcement: Enabled
+                    contactImageScanners: ScanIfMissing
+                    bypass: BreakGlassAnnotation

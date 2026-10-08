@@ -1,0 +1,40 @@
+# bad-latest.yaml
+# Purpose: Test workload that references an image by the "latest" tag.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bad-latest
+  namespace: acs-image-demo
+  labels:
+    app: bad-latest
+    app.kubernetes.io/part-of: acs-image-workshop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bad-latest
+  template:
+    metadata:
+      labels:
+        app: bad-latest
+        app.kubernetes.io/part-of: acs-image-workshop
+    spec:
+      containers:
+        - name: app
+          image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+          command: ["/bin/sh", "-c", "sleep infinity"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          readinessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "true"]
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "true"]
+            periodSeconds: 30

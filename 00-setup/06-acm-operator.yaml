@@ -1,0 +1,32 @@
+# 06-acm-operator.yaml
+# Purpose: Install Red Hat Advanced Cluster Management. Used in Step 5.
+# Apply with envsubst: ACM_CHANNEL is resolved from the PackageManifest default channel.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: open-cluster-management
+  labels:
+    app.kubernetes.io/part-of: acs-image-workshop
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: open-cluster-management
+  namespace: open-cluster-management
+spec:
+  targetNamespaces:
+    - open-cluster-management
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: advanced-cluster-management
+  namespace: open-cluster-management
+  labels:
+    app.kubernetes.io/part-of: acs-image-workshop
+spec:
+  channel: ${ACM_CHANNEL}
+  installPlanApproval: Automatic
+  name: advanced-cluster-management
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace

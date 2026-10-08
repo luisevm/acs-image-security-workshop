@@ -1,0 +1,19 @@
+# 01-policy-namespace.yaml
+# Purpose: Namespace on the ACM hub that holds the ACS governance policies, bound to
+# the "global" cluster set so placements in it can select any managed cluster.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: acs-policies
+  labels:
+    app.kubernetes.io/part-of: acs-image-workshop
+---
+apiVersion: cluster.open-cluster-management.io/v1beta2
+kind: ManagedClusterSetBinding
+metadata:
+  name: global
+  namespace: acs-policies
+  labels:
+    app.kubernetes.io/part-of: acs-image-workshop
+spec:
+  clusterSet: global

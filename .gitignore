@@ -1,0 +1,24 @@
+.DS_Store
+t/
+myenv.sh
+
+# ACS artifacts (generated per environment, contain secrets)
+*-init-bundle.yaml
+.rox-token
+
+# CLI binaries (downloaded per workstation)
+roxctl
+
+# Git edit backups created by sed -i.bak in Step 3
+*.bak
+
+# Antora / Node.js
+node_modules/
+.cache/
+gh-pages/
+package-lock.json
+yarn.lock
+yarn-error.log
+
+# Claude Code local settings
+.claude/settings.local.json

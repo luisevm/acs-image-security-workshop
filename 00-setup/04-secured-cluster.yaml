@@ -1,0 +1,26 @@
+# 04-secured-cluster.yaml
+# Purpose: Deploy the ACS secured cluster services (Sensor, Admission controller, Collector)
+# on the same cluster as Central.
+# Apply with envsubst: ACS_CLUSTER_NAME is the name the cluster gets in the ACS portal.
+# admissionControl uses the fields introduced in RHACS 4.9; the listenOn* fields are deprecated.
+apiVersion: platform.stackrox.io/v1alpha1
+kind: SecuredCluster
+metadata:
+  name: stackrox-secured-cluster-services
+  namespace: stackrox
+  labels:
+    app.kubernetes.io/part-of: acs-image-workshop
+spec:
+  clusterName: ${ACS_CLUSTER_NAME}
+  centralEndpoint: central.stackrox.svc:443
+  admissionControl:
+    # Hard enforcement through the validating webhook
+    enforcement: Enabled
+    # Scan images that Central has not seen yet before deciding (adds latency)
+    contactImageScanners: ScanIfMissing
+    # Allow the admission.stackrox.io/break-glass annotation (audited as a violation)
+    bypass: BreakGlassAnnotation
+  perNode:
+    taintToleration: TolerateTaints
+  scanner:
+    scannerComponent: AutoSense

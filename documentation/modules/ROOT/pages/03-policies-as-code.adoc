@@ -1,0 +1,362 @@
+= Step 3 - Policies as Code: Git as the source of truth
+include::_attributes.adoc[]
+
+At the end of Step 2 the four policies are custom resources that you applied by hand. Anyone with access to the `stackrox` namespace or the ACS portal can change them, and nothing records why. In this step OpenShift GitOps (Argo CD) takes over the policies from the `03-policies-as-code/policies/` folder of your fork. You change a policy with a Git commit, watch Argo CD undo a manual change on the cluster, see how the ACS portal treats a policy it does not own, and delete and restore a policy through Git.
+
+== Prerequisites
+
+* xref:02-image-compliance.adoc[Step 2] completed, with the four policies in enforce mode
+* OpenShift GitOps installed in xref:00-setup.adoc#install-operators[Cluster Setup]
+* A local clone of your fork, with permission to push to the branch in `GIT_REVISION`
+* `source myenv.sh` run in your current shell
+
+== How it works
+
+Two controllers work in sequence. Argo CD keeps the `SecurityPolicy` custom resources in `stackrox` equal to the files in Git. The RHACS `config-controller` copies each custom resource into Central and marks the policy in the portal as managed externally. A change that starts in Git reaches Central through both controllers. A manual change to a custom resource is reverted by Argo CD self-heal, and a change made in the portal is overwritten by `config-controller`.
+
+The files in `03-policies-as-code/policies/` carry the same names and content as `02-image-compliance/enforce/`, so Argo CD adopts the existing resources without changing how ACS behaves.
+
+== Steps to apply
+
+[#fork]
+=== 1. Check your fork
+
+// TODO-TIMING: measure; add an icon:clock[] line only if more than 10 seconds
+
+*What:* Confirm that `GIT_REPO_URL` is your fork, that Argo CD can read it, and that you can push to it.
+
+*Why:* Argo CD reads the policies from this repository, and every change in this step is a push.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+echo "${GIT_REPO_URL} ${GIT_REVISION}"
+git ls-remote "${GIT_REPO_URL}" "${GIT_REVISION}"
+git push --dry-run origin "${GIT_REVISION}"
+----
+
+NOTE: The workshop assumes a public fork. For a private repository, add its credentials to Argo CD as a repository secret before the next sub-steps.
+
+.Verify: The branch exists and a push would work
+[%collapsible]
+====
+[.console-output]
+[source,bash]
+----
+TODO-CAPTURE: replace with the real output from the validation run
+----
+====
+
+'''
+
+[#argocd-rbac]
+=== 2. Grant Argo CD access to the policies
+
+// TODO-TIMING: measure; add an icon:clock[] line only if more than 10 seconds
+
+*What:* Create a Role in `stackrox` that lets the Argo CD application controller manage `SecurityPolicy` resources, and nothing else in that namespace.
+
+*Why:* The default Argo CD instance cannot write to `stackrox` until you grant it access, and the Role keeps that access as narrow as the task.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc --context {hub-context} apply -f 03-policies-as-code/01-argocd-rbac.yaml
+----
+
+.Verify: Argo CD can create policies and cannot read secrets
+[%collapsible]
+====
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+SA=system:serviceaccount:openshift-gitops:openshift-gitops-argocd-application-controller
+oc --context {hub-context} auth can-i create securitypolicies.config.stackrox.io -n stackrox --as="${SA}"
+oc --context {hub-context} auth can-i get secrets -n stackrox --as="${SA}"
+----
+
+[.console-output]
+[source,bash]
+----
+yes
+no
+----
+
+// TODO-VALIDATE: the second answer depends on the default cluster permissions of the openshift-gitops instance; record the real answer
+====
+
+'''
+
+[#create-app]
+=== 3. Hand the policies to Argo CD
+
+// TODO-TIMING: measure apply to Synced and Healthy; add an icon:clock[] line only if more than 10 seconds
+
+*What:* Create an Argo CD Application that syncs `03-policies-as-code/policies/` from your fork into `stackrox`.
+
+*Why:* From now on the files in Git decide what the policies look like.
+
+The Application manifest uses `$\{GIT_REPO_URL}` and `$\{GIT_REVISION}`, so it goes through `envsubst`:
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+envsubst < 03-policies-as-code/02-application.yaml | oc --context {hub-context} apply -f -
+----
+
+The Application has automated sync with `prune` and `selfHeal` turned on. It has no resources finalizer, so deleting the Application later leaves the policies in place.
+
+// TODO-SCREENSHOT: 03-argocd-application.png | OpenShift console application launcher > Cluster Argo CD > acs-image-policies | tree view with the four SecurityPolicy resources
+// TODO-VALIDATE: confirm the menu path to the Argo CD UI in the installed OpenShift and GitOps versions
+
+.Verify: The Application is synced and manages the four policies
+[%collapsible]
+====
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc --context {hub-context} get application acs-image-policies -n openshift-gitops \
+  -o jsonpath='{.status.sync.status} {.status.health.status}{"\n"}{.status.resources[*].name}{"\n"}'
+----
+
+[.console-output]
+[source,bash]
+----
+TODO-CAPTURE: replace with the real output from the validation run
+----
+====
+
+'''
+
+[#git-change]
+=== 4. Change a policy in Git
+
+// TODO-TIMING: measure push to new value in Central and to the legacy-app age violation resolving; add an icon:clock[] line with a breakdown
+
+*What:* Raise the image-age limit from 365 to 3650 days with a commit, then ask Argo CD to refresh.
+
+*Why:* A commit can be reviewed and reverted, and Git records who changed the rule.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+F=03-policies-as-code/policies/03-policy-image-age.yaml
+sed -i.bak -e 's/"365"/"3650"/' -e 's/ 365 days/ 3650 days/g' "$F" && rm -f "$F.bak"
+git diff --stat
+git commit -am "Raise the workshop image age limit to 3650 days"
+git push origin "${GIT_REVISION}"
+oc --context {hub-context} annotate application acs-image-policies -n openshift-gitops \
+  argocd.argoproj.io/refresh=hard --overwrite
+----
+
+The `sed` patterns only match the original values, so running the command twice does not change the file again. Argo CD also polls Git on its own. The `refresh` annotation only saves you the wait.
+
+The legacy image is older than 365 days and younger than 3650 days, so its age violation resolves.
+
+.Verify: The new value reached the cluster and Central
+[%collapsible]
+====
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc --context {hub-context} get securitypolicy workshop-image-age -n stackrox \
+  -o jsonpath='{.spec.policySections[0].policyGroups[0].values[0].value}{"\n"}'
+curl -skG -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/alerts" \
+  --data-urlencode "query=Namespace:acs-image-demo" \
+  | jq -r '.alerts[] | select(.policy.name | startswith("Workshop - Image older")) | [.policy.name, .deployment.name, .state] | @tsv'
+----
+
+[.console-output]
+[source,bash]
+----
+TODO-CAPTURE: replace with the real output from the validation run
+----
+
+// TODO-VALIDATE: record how long Central takes to re-evaluate legacy-app after the policy changes
+====
+
+'''
+
+[#self-heal]
+=== 5. Watch Argo CD undo a manual change
+
+// TODO-TIMING: measure patch to revert; add an icon:clock[] line only if more than 10 seconds
+
+*What:* Lower the severity of the latest-tag policy directly on the cluster and watch it come back.
+
+*Why:* A change that bypasses Git does not last, so the policy in Git is the policy that runs.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc --context {hub-context} patch securitypolicy workshop-latest-tag -n stackrox \
+  --type merge -p '{"spec":{"severity":"LOW_SEVERITY"}}'
+for i in $(seq 1 12); do
+  oc --context {hub-context} get securitypolicy workshop-latest-tag -n stackrox -o jsonpath='{.spec.severity}{"\n"}'
+  sleep 5
+done
+----
+
+.Verify: The severity returns to MEDIUM_SEVERITY
+[%collapsible]
+====
+[.console-output]
+[source,bash]
+----
+TODO-CAPTURE: replace with the real output from the validation run
+----
+====
+
+'''
+
+[#portal-drift]
+=== 6. Try to edit the policy in the ACS portal
+
+*What:* Open a workshop policy in the ACS portal and try to edit it.
+
+*Why:* Participants who use the portal need to know that a policy managed as code cannot be changed there for good.
+
+In the ACS portal, go to *Platform Configuration > Policy Management*, search for `Workshop`, and open *Workshop - Image uses the latest tag*. The policy is marked as managed externally. Try *Actions > Edit policy* and read the message.
+
+// TODO-SCREENSHOT: 03-policy-managed-externally.png | Platform Configuration > Policy Management > Workshop - Image uses the latest tag | the "managed externally" badge and the edit message
+// TODO-VALIDATE: record the exact badge text and whether editing is disabled or allowed with a warning that config-controller overwrites the change
+
+.Verify: The portal shows the policy as externally managed
+[%collapsible]
+====
+TODO-CAPTURE: describe the badge and the edit behavior seen during the validation run
+====
+
+'''
+
+[#git-delete]
+=== 7. Delete and restore a policy through Git
+
+// TODO-TIMING: measure push to CR pruned to policy gone from Central, and the same for the restore; add an icon:clock[] line with a breakdown
+
+*What:* Remove the registry policy file in Git, check that the policy disappears from the cluster and from Central, then revert the commit.
+
+*Why:* Deleting a rule is also a reviewed change, and `git revert` brings it back exactly as it was.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+git rm 03-policies-as-code/policies/02-policy-trusted-registries.yaml
+git commit -m "Remove the workshop registry policy"
+git push origin "${GIT_REVISION}"
+oc --context {hub-context} annotate application acs-image-policies -n openshift-gitops \
+  argocd.argoproj.io/refresh=hard --overwrite
+----
+
+Check that the custom resource and the Central policy are gone:
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc --context {hub-context} get securitypolicy workshop-trusted-registries -n stackrox
+curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/policies" \
+  | jq -r '.policies[].name' | grep '^Workshop - '
+----
+
+Restore it:
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+git revert --no-edit HEAD
+git push origin "${GIT_REVISION}"
+oc --context {hub-context} annotate application acs-image-policies -n openshift-gitops \
+  argocd.argoproj.io/refresh=hard --overwrite
+----
+
+.Verify: The registry policy is back in Central
+[%collapsible]
+====
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc --context {hub-context} get securitypolicy workshop-trusted-registries -n stackrox \
+  -o jsonpath='{.status.conditions[?(@.type=="AcceptedByCentral")].status}{"\n"}'
+----
+
+[.console-output]
+[source,bash]
+----
+True
+----
+====
+
+'''
+
+== What this solves
+
+[cols="2,3",options="header"]
+|===
+| Problem from Step 2 | How this step solves it
+
+| Policies are applied by hand, with no review and no record of who changed what
+| Every change is a Git commit that Argo CD applies
+
+| Someone can edit or delete a policy and nothing puts it back
+| Argo CD self-heal reverts changes to the custom resources, and `config-controller` overwrites portal edits
+|===
+
+== What this does NOT solve (yet)
+
+[cols="2,3",options="header"]
+|===
+| Remaining problem | Addressed in
+
+| Admission enforcement can be turned off on the cluster, or the secured cluster services removed, and the policies stop blocking anything
+| xref:05-acs-acm.adoc[Step 5: ACS and ACM]
+|===
+
+== Official documentation
+
+* link:https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.11/html/configuring/using-rhacs-with-gitops[Using RHACS with GitOps]
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_gitops/latest/html/installing_gitops/installing-openshift-gitops[Installing Red Hat OpenShift GitOps]
+
+== Alternatives considered
+
+[cols="2,4",options="header"]
+|===
+| Approach | Notes
+
+| `SecurityPolicy` custom resources synced by OpenShift GitOps (this step)
+| Native to RHACS since policy as code became generally available in 4.8. Works with any Git server Argo CD can reach.
+
+| RHACM policy that creates the `SecurityPolicy` resources on the hub
+| Possible, since Central reads the custom resources from its own namespace. Adds a second tool for the same job when Argo CD already runs.
+
+| Scripts that call the ACS policy API from a pipeline
+| Works on versions without policy as code. You write and maintain the drift detection yourself.
+|===
+
+'''
+
+== Reset
+
+This returns the cluster to the state at the end of Step 2 and puts the image-age file in your fork back to 365 days, so the step works again on the next run. The Application goes first so that nothing reconciles while you restore the files.
+
+[.console-input]
+[source,bash]
+----
+# 1. Stop Argo CD from managing the policies (no finalizer, so the policies stay)
+oc --context hub delete application acs-image-policies -n openshift-gitops --ignore-not-found --wait
+
+# 2. Remove the Argo CD permissions
+oc --context hub delete -f 03-policies-as-code/01-argocd-rbac.yaml --ignore-not-found
+
+# 3. Restore the Git files in your fork
+F=03-policies-as-code/policies/03-policy-image-age.yaml
+sed -i.bak -e 's/"3650"/"365"/' -e 's/ 3650 days/ 365 days/g' "$F" && rm -f "$F.bak"
+git ls-files --error-unmatch 03-policies-as-code/policies/02-policy-trusted-registries.yaml >/dev/null 2>&1 \
+  || git checkout HEAD~1 -- 03-policies-as-code/policies/02-policy-trusted-registries.yaml
+git add 03-policies-as-code/policies/
+git diff --cached --quiet || { git commit -m "Reset workshop policies to the Step 2 state"; git push origin "${GIT_REVISION}"; }
+
+# 4. Put the cluster policies back to the Step 2 enforced state
+oc --context hub apply -f 02-image-compliance/enforce/
+----
+
+// TODO-VALIDATE: the HEAD~1 restore only covers the case where sub-step 7 stopped right after the delete commit; check this path during the reset run

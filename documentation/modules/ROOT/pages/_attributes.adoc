@@ -1,0 +1,10 @@
+:experimental:
+:source-highlighter: highlightjs
+:title: RHACS Image Security Workshop
+:hub-context: hub
+:acs-min-version: 4.9
+// TODO-VALIDATE: replace the four values below with the versions installed during the validation run
+:ocp-version: 4.x
+:acs-version: 4.x
+:acm-version: 2.x
+:gitops-version: 1.x

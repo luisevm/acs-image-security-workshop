@@ -1,0 +1,55 @@
+= RHACS Image Security Workshop
+
+A hands-on workshop for Red Hat Advanced Cluster Security for Kubernetes (RHACS) on one OpenShift cluster. Participants list the images that run and their fixable CVEs, write policies that alert on and then block outdated or untrusted images, manage those policies from Git with OpenShift GitOps, and use Red Hat Advanced Cluster Management (RHACM) to keep ACS admission enforcement in place.
+
+== View the course
+
+The full course is published at: https://luisevm.github.io/acs-image-security-workshop
+
+== Local development
+
+To preview the course site locally:
+
+[source,bash]
+----
+npm install
+npm run dev
+----
+
+This starts a live-reload server at http://localhost:3000.
+
+== Build the site
+
+[source,bash]
+----
+npx antora site.yml
+----
+
+The generated site is output to `gh-pages/`.
+
+== Repository structure
+
+[cols="2,4",options="header"]
+|===
+| Directory | Purpose
+
+| `documentation/`
+| Antora courseware source (AsciiDoc pages, navigation, attributes)
+
+| `00-setup/`
+| Operator subscriptions (RHACS, OpenShift GitOps, RHACM), Central, SecuredCluster, and MultiClusterHub
+
+| `01-inventory-cve/`
+| Step 1 - demo namespace, a legacy and a current workload, and the inform-only CVE policy
+
+| `02-image-compliance/`
+| Step 2 - alert receiver and notifier, policies in inform (`policies/`) and enforce (`enforce/`) mode, and test workloads (`tests/`)
+
+| `03-policies-as-code/`
+| Step 3 - Argo CD permissions, the Application, and the policy files Argo CD syncs (`policies/`)
+
+| `05-acs-acm/`
+| Step 5 - RHACM namespace, placement, and the ACS baseline policy
+|===
+
+Step 4 (image signature verification) is not part of this session.

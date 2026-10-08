@@ -1,0 +1,10 @@
+# 07-multiclusterhub.yaml
+# Purpose: Create the ACM hub. The hub imports itself as the managed cluster "local-cluster".
+apiVersion: operator.open-cluster-management.io/v1
+kind: MultiClusterHub
+metadata:
+  name: multiclusterhub
+  namespace: open-cluster-management
+  labels:
+    app.kubernetes.io/part-of: acs-image-workshop
+spec: {}

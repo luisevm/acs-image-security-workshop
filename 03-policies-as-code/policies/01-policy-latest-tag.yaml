@@ -1,0 +1,41 @@
+# 01-policy-latest-tag.yaml
+# Purpose: Flags images referenced by the mutable "latest" tag. The tag says nothing
+# about which build is running, and it can point to a different image tomorrow.
+# Mode: managed by Argo CD from Git (Step 3). Edit this file, commit, and push.
+# Applied on the cluster where Central runs (namespace stackrox).
+apiVersion: config.stackrox.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: workshop-latest-tag
+  namespace: stackrox
+  labels:
+    workshop: acs-image-workshop
+    app.kubernetes.io/part-of: acs-image-workshop
+spec:
+  policyName: "Workshop - Image uses the latest tag"
+  description: "Deployment references an image with the tag latest."
+  rationale: "A latest tag can resolve to a different image on every pull, so you cannot tell which build runs."
+  remediation: "Reference the image by a version tag or, better, by digest."
+  categories:
+    - DevOps Best Practices
+  severity: MEDIUM_SEVERITY
+  lifecycleStages:
+    - BUILD
+    - DEPLOY
+  eventSource: NOT_APPLICABLE
+  enforcementActions:
+    - FAIL_BUILD_ENFORCEMENT
+    - FAIL_DEPLOYMENT_CREATE_ENFORCEMENT
+    - FAIL_DEPLOYMENT_UPDATE_ENFORCEMENT
+    - SCALE_TO_ZERO_ENFORCEMENT
+  notifiers:
+    - workshop-alert-sink
+  scope:
+    - namespace: acs-image-demo
+  policySections:
+    - sectionName: "Latest tag"
+      policyGroups:
+        - fieldName: Image Tag
+          booleanOperator: OR
+          values:
+            - value: "latest"

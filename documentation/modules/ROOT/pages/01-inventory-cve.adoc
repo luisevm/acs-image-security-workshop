@@ -1,0 +1,330 @@
+= Step 1 - Inventory and CVE Posture: What runs and what is fixable
+include::_attributes.adoc[]
+
+Before you write rules about images, you need to know which images run and which of their vulnerabilities have a fix. In this step you deploy two small workloads: one built on an old UBI 8.4 image and one on the current UBI 9 minimal image, pinned by digest. You list them from OpenShift and from ACS, read their CVEs in the portal and with `roxctl`, and add a first policy that flags fixable CVEs of severity Important or higher. The policy only reports for now. Step 2 turns it into a block.
+
+== Prerequisites
+
+* xref:00-setup.adoc[Cluster Setup] completed, including the scanner check
+* `source myenv.sh` run in your current shell, so `CURRENT_IMAGE`, `ACS_CENTRAL_ROUTE`, and `ROX_API_TOKEN` are set
+* `roxctl` available in the repository root
+
+== How it works
+
+Sensor watches the workloads on the cluster and sends their image references to Central. Central scans each image, stores the result by digest, and evaluates every policy whose scope matches the workload. A violation appears when a workload matches all the criteria in one policy section. The policy you add in this step is a Kubernetes `SecurityPolicy` custom resource that the RHACS `config-controller` copies into Central.
+
+== Steps to apply
+
+[#deploy-workloads]
+=== 1. Deploy two workloads
+
+// TODO-TIMING: measure apply to both Deployments Available (includes image pulls); add an icon:clock[] line only if more than 10 seconds
+
+*What:* Create the `acs-image-demo` namespace with a legacy workload and a current workload.
+
+*Why:* Comparing an old image with a current one makes the CVE numbers and the policy results easy to read.
+
+The current workload uses `$\{CURRENT_IMAGE}`, which `myenv.sh` resolved to a digest, so it goes through `envsubst`:
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc --context {hub-context} apply -f 01-inventory-cve/01-namespace.yaml
+oc --context {hub-context} apply -f 01-inventory-cve/02-legacy-app.yaml
+envsubst < 01-inventory-cve/03-current-app.yaml | oc --context {hub-context} apply -f -
+oc --context {hub-context} wait deploy --all -n acs-image-demo \
+  --for=condition=Available --timeout=300s
+----
+
+.Verify: Both workloads are running
+[%collapsible]
+====
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc --context {hub-context} get deploy -n acs-image-demo
+----
+
+[.console-output]
+[source,bash]
+----
+TODO-CAPTURE: replace with the real output from the validation run
+----
+====
+
+'''
+
+[#inventory]
+=== 2. List what is running
+
+*What:* Print each pod's image reference and resolved digest, then ask ACS which images it tracks in the namespace.
+
+*Why:* A tag can move to a different build at any time, while the digest names the exact image that runs. ACS stores images by name and digest and has no separate "application version" object.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc --context {hub-context} get pods -n acs-image-demo \
+  -o custom-columns='POD:.metadata.name,IMAGE:.spec.containers[0].image,IMAGE_ID:.status.containerStatuses[0].imageID'
+----
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+curl -skG -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/images" \
+  --data-urlencode "query=Namespace:acs-image-demo" \
+  | jq -r '.images[] | [.name, .id] | @tsv'
+----
+
+The legacy pod shows the tag `8.4` in its spec and a digest in its image ID. The current pod shows the digest in both places.
+
+.Verify: ACS lists both images
+[%collapsible]
+====
+[.console-output]
+[source,bash]
+----
+TODO-CAPTURE: replace with the real output from the validation run
+----
+
+If the ACS list is empty, Sensor has not reported the workloads yet. Wait 30 seconds and run the `curl` command again.
+====
+
+'''
+
+[#explore-portal]
+=== 3. Explore the CVEs in the portal
+
+*What:* Open the vulnerability results for the `acs-image-demo` namespace and narrow them to fixable CVEs of severity Critical or Important.
+
+*Why:* The full CVE list of an old image is long. The fixable, high-severity subset is the list an application team can act on.
+
+In the ACS portal, go to *Vulnerability Management > Results* and open the *User Workloads* tab. Add the filter *Namespace* `acs-image-demo`, then the filters *CVE status* `Fixable` and *Severity* `Critical` and `Important`. Switch between the CVE, Image, and Deployment views to see the same findings grouped three ways.
+
+// TODO-SCREENSHOT: 01-workload-cves.png | Vulnerability Management > Results > User Workloads | filters Namespace=acs-image-demo, CVE status=Fixable, Severity=Critical+Important
+// TODO-VALIDATE: confirm the exact labels of the sidebar entry, the tab, and the three filters in the installed version
+
+Open one CVE and look at the *Fixed by* column. It names the package version that removes the CVE.
+
+.Verify: Only the legacy image has fixable Critical or Important CVEs
+[%collapsible]
+====
+The filtered Image view lists `registry.access.redhat.com/ubi8/ubi:8.4`.
+
+// TODO-VALIDATE: record whether the current UBI 9 minimal image also shows fixable Important CVEs on the validation date; if it does, add a NOTE here explaining it
+TODO-CAPTURE: describe what the filtered view showed during the validation run
+====
+
+'''
+
+[#roxctl-scan]
+=== 4. Scan both images from the CLI
+
+// TODO-TIMING: measure; add an icon:clock[] line only if more than 10 seconds
+
+*What:* Use `roxctl image scan` to print the Critical and Important CVEs of both images and their severity counts.
+
+*Why:* The CLI returns the same data as the portal in a form you can script, which is what a CI pipeline uses later.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+roxctl --insecure-skip-tls-verify image scan --image registry.access.redhat.com/ubi8/ubi:8.4 \
+  --severity CRITICAL,IMPORTANT --output table | head -20
+----
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+for img in registry.access.redhat.com/ubi8/ubi:8.4 "${CURRENT_IMAGE}"; do
+  echo "== ${img}"
+  roxctl --insecure-skip-tls-verify image scan --image "${img}" --output json | jq '.result.summary'
+done
+----
+
+.Verify: The legacy image has far more CVEs than the current one
+[%collapsible]
+====
+[.console-output]
+[source,bash]
+----
+TODO-CAPTURE: replace with the real output from the validation run
+----
+====
+
+'''
+
+[#apply-policy]
+=== 5. Apply the CVE policy
+
+// TODO-TIMING: measure CR apply to AcceptedByCentral=True; add an icon:clock[] line only if more than 10 seconds
+
+*What:* Create a `SecurityPolicy` that flags images with a fixable CVE of severity Important or higher in `acs-image-demo`.
+
+*Why:* A policy turns the list from the previous sub-steps into a rule that ACS checks continuously, for every new and existing workload in scope.
+
+The policy has no enforcement actions, so ACS reports violations and blocks nothing. It covers the BUILD stage (CLI and CI checks) and the DEPLOY stage (workloads on the cluster). Both criteria sit in one policy section, so a violation needs a CVE that is fixable and at least Important.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc --context {hub-context} apply -f 01-inventory-cve/04-policy-fixable-important-cves.yaml
+----
+
+NOTE: `SecurityPolicy` resources always go in the namespace where Central runs (`stackrox`). The `scope` field inside the policy decides which workloads it checks.
+
+.Verify: Central accepted the policy
+[%collapsible]
+====
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc --context {hub-context} get securitypolicy workshop-fixable-important-cves -n stackrox \
+  -o jsonpath='{.status.conditions[?(@.type=="AcceptedByCentral")].status}{"\n"}'
+----
+
+[.console-output]
+[source,bash]
+----
+True
+----
+====
+
+'''
+
+[#violations]
+=== 6. Review the violations
+
+// TODO-TIMING: measure policy accepted to violation visible; add an icon:clock[] line only if more than 10 seconds
+
+*What:* List the violations of the new policy in the portal and through the API.
+
+*Why:* The violation names the workload, the CVEs that matched, and the fix, which is what you hand to the team that owns the image.
+
+In the portal, go to *Violations* and filter by *Namespace* `acs-image-demo`. Open the violation for `legacy-app` and read the matched CVEs.
+
+// TODO-SCREENSHOT: 01-violations.png | Violations | filter Namespace=acs-image-demo, policy "Workshop - Fixable CVEs of severity Important or higher"
+// TODO-VALIDATE: confirm the Violations page filter labels in the installed version
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+curl -skG -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/alerts" \
+  --data-urlencode "query=Namespace:acs-image-demo" \
+  | jq -r '.alerts[] | select(.policy.name | startswith("Workshop")) | [.policy.name, .deployment.name, .state] | @tsv'
+----
+
+// TODO-VALIDATE: confirm the field names .policy.name, .deployment.name, and .state in the /v1/alerts response
+
+.Verify: Only `legacy-app` violates the policy
+[%collapsible]
+====
+[.console-output]
+[source,bash]
+----
+TODO-CAPTURE: replace with the real output from the validation run
+----
+====
+
+'''
+
+[#image-check]
+=== 7. Run a build-time check
+
+// TODO-TIMING: measure; add an icon:clock[] line only if more than 10 seconds
+
+*What:* Run `roxctl image check` against the legacy image and print the exit code.
+
+*Why:* This is the same check a CI pipeline runs before it pushes an image. It shows that the policy also applies at build time.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+roxctl --insecure-skip-tls-verify image check --image registry.access.redhat.com/ubi8/ubi:8.4 --output table
+echo "exit code: $?"
+----
+
+The table lists the workshop policy, and the exit code is `0`. `roxctl image check` only fails when a violated policy has the "fail build" enforcement action, which you add in Step 2.
+
+.Verify: The policy is listed and the exit code is 0
+[%collapsible]
+====
+[.console-output]
+[source,bash]
+----
+TODO-CAPTURE: replace with the real output from the validation run
+----
+====
+
+'''
+
+== What this solves
+
+[cols="2,3",options="header"]
+|===
+| Problem | How this step solves it
+
+| Nobody knows which image builds run on the cluster
+| The pod image IDs and the ACS image list show each image by name and digest
+
+| CVE lists are too long to act on
+| Filtering to fixable Critical and Important CVEs gives a short list with the fixing package version
+
+| Checking for vulnerable images depends on someone remembering to look
+| The CVE policy flags matching workloads continuously, at build time and on the cluster
+|===
+
+== What this does NOT solve (yet)
+
+[cols="2,3",options="header"]
+|===
+| Remaining problem | Addressed in
+
+| Nobody is notified when a violation appears
+| xref:02-image-compliance.adoc[Step 2: Image compliance]
+
+| Vulnerable, outdated, or untrusted images can still be deployed
+| xref:02-image-compliance.adoc[Step 2: Image compliance]
+|===
+
+== Official documentation
+
+* link:https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.11/html/operating/using-policies-to-provide-security[Using policies to provide security]
+* link:https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.11/html/roxctl_cli/checking-policy-compliance-1[Checking policy compliance with roxctl]
+* link:https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.11/html/operating/respond-to-violations[Responding to violations]
+
+== Alternatives considered
+
+[cols="2,4",options="header"]
+|===
+| Approach | Notes
+
+| ACS policy as a `SecurityPolicy` custom resource (this step)
+| Versioned like any other manifest, and the same file moves to Git in Step 3.
+
+| Policy created in the ACS portal
+| Quicker the first time. There is no file to review or version, and the result is harder to reproduce on another Central.
+
+| Clone of the built-in "Fixable Severity at Least Important" policy
+| Close to the same rule. Built-in policies cannot be managed as custom resources, so you would clone it first anyway.
+|===
+
+'''
+
+== Reset
+
+This returns the cluster to the state at the end of the setup. The policy goes first so that ACS stops evaluating the namespace before the workloads disappear.
+
+[.console-input]
+[source,bash]
+----
+# 1. Policy (config-controller removes it from Central)
+oc --context hub delete securitypolicy workshop-fixable-important-cves -n stackrox --ignore-not-found
+
+# 2. Workloads and namespace
+oc --context hub delete namespace acs-image-demo --ignore-not-found --wait
+
+# 3. Check that Central no longer has workshop policies (expect 0)
+curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/policies" \
+  | jq -r '.policies[].name' | grep -c '^Workshop - '
+----

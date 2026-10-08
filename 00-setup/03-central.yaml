@@ -1,0 +1,37 @@
+# 03-central.yaml
+# Purpose: Deploy ACS Central (portal, API, Scanner) in the stackrox namespace.
+apiVersion: platform.stackrox.io/v1alpha1
+kind: Central
+metadata:
+  name: stackrox-central-services
+  namespace: stackrox
+  labels:
+    app.kubernetes.io/part-of: acs-image-workshop
+spec:
+  central:
+    exposure:
+      route:
+        enabled: true
+    db:
+      resources:
+        requests:
+          cpu: 500m
+          memory: 2Gi
+        limits:
+          cpu: "4"
+          memory: 8Gi
+    resources:
+      requests:
+        cpu: 500m
+        memory: 2Gi
+      limits:
+        cpu: "2"
+        memory: 8Gi
+  scanner:
+    analyzer:
+      scaling:
+        autoScaling: Enabled
+        maxReplicas: 3
+        minReplicas: 1
+        replicas: 1
+    scannerComponent: Enabled

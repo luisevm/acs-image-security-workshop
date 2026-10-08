@@ -1,0 +1,40 @@
+# 04-policy-fixable-important-cves.yaml
+# Purpose: Step 1 CVE policy, now wired to the workshop notifier.
+# Both criteria sit in one section, so a violation needs Fixable AND Severity.
+# Mode: inform only (no enforcement actions). The enforced version is in ../enforce/.
+# Applied on the cluster where Central runs (namespace stackrox).
+apiVersion: config.stackrox.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: workshop-fixable-important-cves
+  namespace: stackrox
+  labels:
+    workshop: acs-image-workshop
+    app.kubernetes.io/part-of: acs-image-workshop
+spec:
+  policyName: "Workshop - Fixable CVEs of severity Important or higher"
+  description: "Image contains a fixable vulnerability with severity Important or Critical."
+  rationale: "A fix exists, so running the vulnerable version is an avoidable risk."
+  remediation: "Rebuild or rebase the image on a patched version, then redeploy."
+  categories:
+    - Vulnerability Management
+  severity: HIGH_SEVERITY
+  lifecycleStages:
+    - BUILD
+    - DEPLOY
+  eventSource: NOT_APPLICABLE
+  notifiers:
+    - workshop-alert-sink
+  scope:
+    - namespace: acs-image-demo
+  policySections:
+    - sectionName: "Fixable Important or Critical CVE"
+      policyGroups:
+        - fieldName: Fixable
+          booleanOperator: OR
+          values:
+            - value: "true"
+        - fieldName: Severity
+          booleanOperator: OR
+          values:
+            - value: ">=IMPORTANT"

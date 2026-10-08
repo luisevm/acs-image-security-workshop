@@ -1,0 +1,45 @@
+# 02-legacy-app.yaml
+# Purpose: Workload built on an old UBI 8.4 image. It carries years of unpatched,
+# fixable CVEs and acts as the "bad" example throughout the workshop.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legacy-app
+  namespace: acs-image-demo
+  labels:
+    app: legacy-app
+    app.kubernetes.io/part-of: acs-image-workshop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: legacy-app
+  template:
+    metadata:
+      labels:
+        app: legacy-app
+        app.kubernetes.io/part-of: acs-image-workshop
+    spec:
+      containers:
+        - name: app
+          image: registry.access.redhat.com/ubi8/ubi:8.4
+          command: ["/bin/sh", "-c", "sleep infinity"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          readinessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "true"]
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "true"]
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]

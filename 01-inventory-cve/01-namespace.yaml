@@ -1,0 +1,8 @@
+# 01-namespace.yaml
+# Purpose: Namespace for the demo workloads. Every workshop policy is scoped to it.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: acs-image-demo
+  labels:
+    app.kubernetes.io/part-of: acs-image-workshop

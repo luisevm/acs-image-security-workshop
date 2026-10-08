@@ -1,0 +1,9 @@
+{
+  "name": "workshop-alert-sink",
+  "type": "generic",
+  "uiEndpoint": "https://${ACS_CENTRAL_ROUTE}",
+  "generic": {
+    "endpoint": "http://alert-sink.acs-alert-sink.svc.cluster.local:8080/alerts",
+    "skipTLSVerify": true
+  }
+}

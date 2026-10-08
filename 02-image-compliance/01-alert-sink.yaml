@@ -1,0 +1,110 @@
+# 01-alert-sink.yaml
+# Purpose: Small in-cluster webhook receiver that prints every ACS alert it gets.
+# It stands in for Slack, a SIEM, or a ticketing system during the workshop.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: acs-alert-sink
+  labels:
+    app.kubernetes.io/part-of: acs-image-workshop
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alert-sink-script
+  namespace: acs-alert-sink
+  labels:
+    app.kubernetes.io/part-of: acs-image-workshop
+data:
+  sink.py: |
+    import json
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
+            try:
+                alert = json.loads(body).get("alert", {})
+                print("ALERT policy=%r deployment=%r namespace=%r stage=%r" % (
+                    alert.get("policy", {}).get("name"),
+                    alert.get("deployment", {}).get("name"),
+                    alert.get("deployment", {}).get("namespace"),
+                    alert.get("lifecycleStage")), flush=True)
+            except ValueError:
+                print("RAW %s" % body[:500], flush=True)
+            self.send_response(200)
+            self.end_headers()
+
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"ok")
+
+        def log_message(self, *args):
+            pass
+
+    HTTPServer(("", 8080), Handler).serve_forever()
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alert-sink
+  namespace: acs-alert-sink
+  labels:
+    app: alert-sink
+    app.kubernetes.io/part-of: acs-image-workshop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alert-sink
+  template:
+    metadata:
+      labels:
+        app: alert-sink
+        app.kubernetes.io/part-of: acs-image-workshop
+    spec:
+      containers:
+        - name: sink
+          image: registry.access.redhat.com/ubi9/python-311
+          command: ["python3", "/app/sink.py"]
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: script
+              mountPath: /app
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            periodSeconds: 30
+      volumes:
+        - name: script
+          configMap:
+            name: alert-sink-script
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alert-sink
+  namespace: acs-alert-sink
+  labels:
+    app.kubernetes.io/part-of: acs-image-workshop
+spec:
+  selector:
+    app: alert-sink
+  ports:
+    - port: 8080
+      targetPort: 8080

@@ -1,0 +1,66 @@
+= RHACS Image Security Workshop
+:page-layout: home
+:!sectids:
+include::_attributes.adoc[]
+
+[.text-center.strong]
+== Know which images run on your cluster and stop the ones you do not want
+
+In this workshop you use Red Hat Advanced Cluster Security for Kubernetes (RHACS) on one OpenShift cluster. You start by listing the images that run and the fixable CVEs they carry. Then you write policies that alert on outdated or untrusted images and, once you trust them, block those images at admission. You move the policies into Git so that OpenShift GitOps keeps them in sync, and you finish with Red Hat Advanced Cluster Management (RHACM) keeping ACS and its admission enforcement in place.
+
+[.tiles.browse]
+== Browse modules
+
+[.tile]
+.xref:00-setup.adoc[Cluster Setup]
+* xref:00-setup.adoc#export-variables[Export variables]
+* xref:00-setup.adoc#install-operators[Install the operators]
+* xref:00-setup.adoc#install-acs[Install ACS]
+
+[.tile]
+.xref:01-inventory-cve.adoc[Step 1: Inventory and CVE posture]
+* xref:01-inventory-cve.adoc#inventory[List what is running]
+* xref:01-inventory-cve.adoc#explore-portal[Explore CVEs]
+* xref:01-inventory-cve.adoc#apply-policy[CVE policy]
+
+[.tile]
+.xref:02-image-compliance.adoc[Step 2: Image compliance]
+* xref:02-image-compliance.adoc#inform-alert[Alert]
+* xref:02-image-compliance.adoc#enforce[Enforce]
+* xref:02-image-compliance.adoc#break-glass[Break-glass]
+
+[.tile]
+.xref:03-policies-as-code.adoc[Step 3: Policies as code]
+* xref:03-policies-as-code.adoc#create-app[Argo CD takes over]
+* xref:03-policies-as-code.adoc#git-change[Change in Git]
+* xref:03-policies-as-code.adoc#self-heal[Drift]
+
+[.tile]
+.xref:05-acs-acm.adoc[Step 5: ACS and ACM]
+* xref:05-acs-acm.adoc#baseline-policy[Baseline policy]
+* xref:05-acs-acm.adoc#drift-enforcement[Drift]
+* xref:05-acs-acm.adoc#recreate[Recreate]
+
+NOTE: Step 4 (image signature verification) is not part of this session.
+
+== Environment
+
+[cols="2,3",options="header"]
+|===
+| Item | Value
+
+| Clusters
+| One OpenShift cluster. It runs ACS Central, the ACS secured cluster services, OpenShift GitOps, and the RHACM hub.
+
+| OpenShift version
+| {ocp-version}
+
+| RHACS version
+| {acs-version} (minimum {acs-min-version})
+
+| RHACM version
+| {acm-version}
+
+| OpenShift GitOps version
+| {gitops-version}
+|===

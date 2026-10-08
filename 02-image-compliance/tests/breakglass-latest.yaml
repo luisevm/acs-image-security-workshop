@@ -1,0 +1,42 @@
+# breakglass-latest.yaml
+# Purpose: The same "latest" workload, deployed on purpose with the break-glass annotation.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: breakglass-latest
+  namespace: acs-image-demo
+  labels:
+    app: breakglass-latest
+    app.kubernetes.io/part-of: acs-image-workshop
+  annotations:
+    admission.stackrox.io/break-glass: "TICKET-1234"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: breakglass-latest
+  template:
+    metadata:
+      labels:
+        app: breakglass-latest
+        app.kubernetes.io/part-of: acs-image-workshop
+    spec:
+      containers:
+        - name: app
+          image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+          command: ["/bin/sh", "-c", "sleep infinity"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          readinessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "true"]
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "true"]
+            periodSeconds: 30
