@@ -6,7 +6,54 @@ include::_attributes.adoc[]
 [.text-center.strong]
 == Know which images run on your cluster and stop the ones you do not want
 
-In this workshop you use Red Hat Advanced Cluster Security for Kubernetes (RHACS) on one OpenShift cluster. You start by finding out which images run, which version and Red Hat build each one is, and which of their CVEs have a fix. Then you write policies that alert on outdated or untrusted images and, once you trust them, block those images at admission. You move the policies into Git so that OpenShift GitOps keeps them in sync, and you finish with Red Hat Advanced Cluster Management (RHACM) keeping ACS and its admission enforcement in place.
+== Introduction
+
+Most clusters run images that nobody has looked at in a while: an application built on a base image from years ago, a test deployment that pulls `latest`, a tool from a public registry. Each of them can carry vulnerabilities that already have a fix. Red Hat Advanced Cluster Security for Kubernetes (RHACS) shows what runs and what each image contains, and it can stop images that break your rules before they start.
+
+In this workshop you work on one OpenShift cluster with two versions of a small application: `legacy-app:1.0.0`, built on a Red Hat UBI 8.4 image from 2021, and `current-app:2.0.0`, built during the workshop on the current UBI 9 minimal image. You start by finding out what runs and what is fixable. Then you turn that knowledge into policies, first as alerts and then as blocks at admission and in the build pipeline. You move the policies into Git, and you finish with Red Hat Advanced Cluster Management (RHACM) making sure nobody can switch the blocking off.
+
+[cols="1,3,3",options="header"]
+|===
+| Step | What you do | What you have at the end
+
+| xref:00-setup.adoc[Setup]
+| Install RHACS, OpenShift GitOps, and RHACM, and register the cluster with ACS. Usually done before the session.
+| A cluster where ACS scans images and its admission controller can enforce policies
+
+| xref:01-inventory-cve.adoc[1. Know Your Images]
+| Publish two application versions, trace each version tag to the Red Hat build behind it, search the cluster by tag and image age, and review fixable CVEs in the portal and with `roxctl`.
+| An inventory of what runs, and a first policy that reports fixable Critical and Important CVEs
+
+| xref:02-image-compliance.adoc[2. Alert, Then Block]
+| Add rules for the `latest` tag, approved registries, and image age. Send violations to a webhook, then switch the rules to enforce and test creates, updates, scaling, the CI check, and the break-glass bypass.
+| Four policies that block non-compliant images at admission and fail the build-time check
+
+| xref:03-policies-as-code.adoc[3. Policies as Code]
+| Let OpenShift GitOps (Argo CD) manage the policies from your fork, change one with a commit, and watch manual changes get reverted.
+| Policies that change only through reviewed Git commits
+
+| xref:05-acs-acm.adoc[5. Keep Enforcement On]
+| Apply an RHACM governance policy for the ACS secured cluster configuration, then turn enforcement off and delete the secured cluster services to see RHACM restore them.
+| Admission enforcement that RHACM puts back when someone changes or removes it
+|===
+
+=== Goals
+
+After the workshop you can:
+
+* Tie every running workload to its version tag, its image digest, and the Red Hat build it was made from, in OpenShift and in ACS
+* Find images across the cluster by tag, registry, and age
+* Separate the CVEs you can fix today from the ones that have no fix yet
+* Write ACS policies for image tags, registries, age, and fixable CVEs, and send their violations to an external system
+* Roll out a policy safely: inform first, then enforce at admission and at build time, with an audited emergency bypass
+* Manage ACS policies as code with Argo CD, and know how the ACS portal treats a policy it does not own
+* Use RHACM to keep the ACS admission controller enforcing on every cluster it manages
+
+=== Before you start
+
+You need one OpenShift cluster with `cluster-admin` access, a workstation with `oc`, `jq`, `curl`, `git`, and `envsubst`, and a GitHub account for Step 3. The details are on the xref:00-setup.adoc[Cluster Setup] page.
+
+The four hands-on steps take about two hours, including reading and the portal. Run the setup beforehand: the ACS scanner alone needs about 11 minutes after Central starts before it returns CVE data.
 
 [.tiles.browse]
 == Browse modules
