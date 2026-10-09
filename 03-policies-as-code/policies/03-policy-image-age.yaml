@@ -1,5 +1,5 @@
 # 03-policy-image-age.yaml
-# Purpose: Flags images built more than 3650 days ago. Old images usually miss a
+# Purpose: Flags images built more than 365 days ago. Old images usually miss a
 # year or more of security errata.
 # Mode: managed by Argo CD from Git (Step 3). Edit this file, commit, and push.
 # Applied on the cluster where Central runs (namespace stackrox).
@@ -12,8 +12,8 @@ metadata:
     workshop: acs-image-workshop
     app.kubernetes.io/part-of: acs-image-workshop
 spec:
-  policyName: "Workshop - Image older than 3650 days"
-  description: "Image was created more than 3650 days ago."
+  policyName: "Workshop - Image older than 365 days"
+  description: "Image was created more than 365 days ago."
   rationale: "Old base images accumulate unpatched vulnerabilities."
   remediation: "Rebuild the image on a current base image."
   categories:
@@ -38,4 +38,4 @@ spec:
         - fieldName: Image Age
           booleanOperator: OR
           values:
-            - value: "3650"
+            - value: "365"
