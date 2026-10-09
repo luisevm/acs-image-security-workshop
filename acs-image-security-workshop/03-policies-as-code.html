@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>RHACS Image Security Workshop :: RHACS Image Security Workshop</title>
+    <title>Step 3 - Policies as Code: Manage ACS policies with Argo CD :: Image Security with RHACS: From Inventory to Enforcement</title>
     <link rel="canonical" href="https://luisevm.github.io/acs-image-security-workshop/acs-image-security-workshop/03-policies-as-code.html">
     <link rel="prev" href="02-image-compliance.html">
     <link rel="next" href="05-acs-acm.html">
@@ -15,7 +15,7 @@
   <nav class="navbar">
     <div class="navbar-brand">
       <a class="navbar-item" href="https://developers.redhat.com" target="_blank"><img src="../_/img/RHDLogo.svg" height="40px" alt="Red Hat Developer Program"></a>
-      <a class="navbar-item" style="font-size: 24px; color: white" href="https://luisevm.github.io/acs-image-security-workshop">RHACS Image Security Workshop</a>
+      <a class="navbar-item" style="font-size: 24px; color: white" href="https://luisevm.github.io/acs-image-security-workshop">Image Security with RHACS: From Inventory to Enforcement</a>
       <button class="navbar-burger" data-target="topbar-nav">
         <span></span>
         <span></span>
@@ -62,7 +62,10 @@
     <a class="nav-link" href="00-setup.html#prerequisites">Prerequisites</a>
   </li>
   <li class="nav-item" data-depth="2">
-    <a class="nav-link" href="00-setup.html#export-variables">Export Workshop Variables</a>
+    <a class="nav-link" href="00-setup.html#clone-repo">Fork and Clone the Repository</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#export-variables">Create myenv.sh</a>
   </li>
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="00-setup.html#login-clusters">Log In to the Cluster</a>
@@ -71,19 +74,28 @@
     <a class="nav-link" href="00-setup.html#install-operators">Install the Operators</a>
   </li>
   <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#install-acm-hub">Start the RHACM Hub</a>
+  </li>
+  <li class="nav-item" data-depth="2">
     <a class="nav-link" href="00-setup.html#install-acs">Install ACS Central</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#roxctl-token">Download roxctl and Create a Token</a>
   </li>
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="00-setup.html#secure-cluster">Secure the Cluster</a>
   </li>
   <li class="nav-item" data-depth="2">
-    <a class="nav-link" href="00-setup.html#check-scanner">Check the Scanner</a>
+    <a class="nav-link" href="00-setup.html#check-scanner">Check the Scanner and the Hub</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#option-b">Option B: Quick Login</a>
   </li>
 </ul>
   </li>
   <li class="nav-item" data-depth="1">
     <button class="nav-item-toggle"></button>
-    <a class="nav-link" href="01-inventory-cve.html">Step 1: Inventory and CVE Posture</a>
+    <a class="nav-link" href="01-inventory-cve.html">Step 1: Know Your Images</a>
 <ul class="nav-list">
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="01-inventory-cve.html#tag-images">Publish Two Application Versions</a>
@@ -119,7 +131,7 @@
   </li>
   <li class="nav-item" data-depth="1">
     <button class="nav-item-toggle"></button>
-    <a class="nav-link" href="02-image-compliance.html">Step 2: Image Compliance</a>
+    <a class="nav-link" href="02-image-compliance.html">Step 2: Alert, Then Block</a>
 <ul class="nav-list">
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="02-image-compliance.html#alert-sink">Set Up an Alert Receiver</a>
@@ -179,10 +191,10 @@
   </li>
   <li class="nav-item" data-depth="1">
     <button class="nav-item-toggle"></button>
-    <a class="nav-link" href="05-acs-acm.html">Step 5: ACS and ACM</a>
+    <a class="nav-link" href="05-acs-acm.html">Step 5: Keep Enforcement On</a>
 <ul class="nav-list">
   <li class="nav-item" data-depth="2">
-    <a class="nav-link" href="05-acs-acm.html#check-hub">Check the ACM Hub</a>
+    <a class="nav-link" href="05-acs-acm.html#check-hub">Check the RHACM Hub</a>
   </li>
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="05-acs-acm.html#placement">Select the Clusters</a>
@@ -212,7 +224,7 @@
   <a href="index.html" class="home-link"></a>
 <nav class="breadcrumbs" aria-label="breadcrumbs">
   <ul>
-    <li><a href="index.html">RHACS Image Security Workshop</a></li>
+    <li><a href="index.html">Image Security with RHACS: From Inventory to Enforcement</a></li>
     <li><a href="03-policies-as-code.html">Step 3: Policies as Code</a></li>
   </ul>
 </nav>
@@ -220,7 +232,7 @@
   </div>
   <div class="content">
 <article class="doc">
-<h1 class="page">RHACS Image Security Workshop</h1>
+<h1 class="page">Step 3 - Policies as Code: Manage ACS policies with Argo CD</h1>
 <div id="preamble">
 <div class="sectionbody">
 <div class="paragraph">
@@ -431,7 +443,7 @@ oc --context hub annotate applications.argoproj.io acs-image-policies -n openshi
 <p>The <code>sed</code> patterns only match the original values, so running the command twice does not change the file again. Argo CD also polls Git on its own. The <code>refresh</code> annotation only saves you the wait.</p>
 </div>
 <div class="paragraph">
-<p>The legacy image is older than 365 days and younger than 3650 days, so its age violation resolves.</p>
+<p>Version <code>1.0.0</code> of <code>legacy-app</code> is older than 365 days and younger than 3650 days, so its age violation resolves.</p>
 </div>
 <details>
 <summary class="title">Verify: The new value reached the cluster and Central</summary>
@@ -576,10 +588,24 @@ curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUT
 <i class="fa icon-warning" title="Warning"></i>
 </td>
 <td class="content">
-In two of three validation runs (RHACS 4.11.4), the policy disappeared from Central within seconds, but the custom resource stayed in the cluster with a deletion timestamp. <code>config-controller</code> deleted the policy in Central, failed to remove its finalizer because of an update conflict, and then kept failing with <code>policy "" is not externally managed and can be deleted only from central</code>. A plain <code>oc delete</code> of a test policy did not hit this. If <code>oc get securitypolicy workshop-trusted-registries -n stackrox</code> still returns the resource after a minute while the policy is gone from Central, remove the finalizer by hand: <code>oc --context hub patch securitypolicy workshop-trusted-registries -n stackrox --type=json -p '[{"op":"remove","path":"/metadata/finalizers"}]'</code>. Otherwise Argo CD cannot create the resource again in the next command.
+In two of three validation runs (RHACS 4.11.4), the policy disappeared from Central within seconds, but the custom resource stayed in the cluster with a deletion timestamp. <code>config-controller</code> deleted the policy in Central, failed to remove its finalizer because of an update conflict, and then kept failing with <code>policy "" is not externally managed and can be deleted only from central</code>. A plain <code>oc delete</code> of a test policy did not hit this. Check for it before you restore the policy.
 </td>
 </tr>
 </table>
+</div>
+<div class="paragraph">
+<p>If the first command below prints a timestamp a minute after the push, the resource is stuck. The policy is already gone from Central, so you can remove the finalizer by hand. Otherwise Argo CD cannot create the resource again in the next command.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub get securitypolicy workshop-trusted-registries -n stackrox \
+  -o jsonpath='{.metadata.deletionTimestamp}{"\n"}'
+oc --context hub patch securitypolicy workshop-trusted-registries -n stackrox \
+  --type=json -p '[{"op":"remove","path":"/metadata/finalizers"}]'</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Run the <code>patch</code> command only when the <code>get</code> command printed a timestamp. When the resource is already gone, <code>get</code> returns <code>NotFound</code> and there is nothing to fix.</p>
 </div>
 <div class="paragraph">
 <p>Restore it:</p>
@@ -656,7 +682,7 @@ oc --context hub annotate applications.argoproj.io acs-image-policies -n openshi
 <tbody>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Admission enforcement can be turned off on the cluster, or the secured cluster services removed, and the policies stop blocking anything</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="05-acs-acm.html" class="xref page">Step 5: ACS and ACM</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="05-acs-acm.html" class="xref page">Step 5: Keep Enforcement On</a></p></td>
 </tr>
 </tbody>
 </table>
@@ -742,8 +768,8 @@ oc --context hub apply -f 02-image-compliance/enforce/</code></pre>
 </div>
 </div>
 <nav class="pagination">
-  <span class="prev"><a href="02-image-compliance.html">Step 2: Image Compliance</a></span>
-  <span class="next"><a href="05-acs-acm.html">Step 5: ACS and ACM</a></span>
+  <span class="prev"><a href="02-image-compliance.html">Step 2: Alert, Then Block</a></span>
+  <span class="next"><a href="05-acs-acm.html">Step 5: Keep Enforcement On</a></span>
 </nav>
 </article>
 <aside class="toc sidebar" data-title="Contents" data-levels="2">

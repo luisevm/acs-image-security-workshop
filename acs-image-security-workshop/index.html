@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>RHACS Image Security Workshop :: RHACS Image Security Workshop</title>
+    <title>Image Security with RHACS: From Inventory to Enforcement :: Image Security with RHACS: From Inventory to Enforcement</title>
     <link rel="canonical" href="https://luisevm.github.io/acs-image-security-workshop/acs-image-security-workshop/index.html">
     <link rel="next" href="00-setup.html">
     <meta name="generator" content="Antora 3.0.0">
@@ -14,7 +14,7 @@
   <nav class="navbar">
     <div class="navbar-brand">
       <a class="navbar-item" href="https://developers.redhat.com" target="_blank"><img src="../_/img/RHDLogo.svg" height="40px" alt="Red Hat Developer Program"></a>
-      <a class="navbar-item" style="font-size: 24px; color: white" href="https://luisevm.github.io/acs-image-security-workshop">RHACS Image Security Workshop</a>
+      <a class="navbar-item" style="font-size: 24px; color: white" href="https://luisevm.github.io/acs-image-security-workshop">Image Security with RHACS: From Inventory to Enforcement</a>
       <button class="navbar-burger" data-target="topbar-nav">
         <span></span>
         <span></span>
@@ -61,7 +61,10 @@
     <a class="nav-link" href="00-setup.html#prerequisites">Prerequisites</a>
   </li>
   <li class="nav-item" data-depth="2">
-    <a class="nav-link" href="00-setup.html#export-variables">Export Workshop Variables</a>
+    <a class="nav-link" href="00-setup.html#clone-repo">Fork and Clone the Repository</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#export-variables">Create myenv.sh</a>
   </li>
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="00-setup.html#login-clusters">Log In to the Cluster</a>
@@ -70,19 +73,28 @@
     <a class="nav-link" href="00-setup.html#install-operators">Install the Operators</a>
   </li>
   <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#install-acm-hub">Start the RHACM Hub</a>
+  </li>
+  <li class="nav-item" data-depth="2">
     <a class="nav-link" href="00-setup.html#install-acs">Install ACS Central</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#roxctl-token">Download roxctl and Create a Token</a>
   </li>
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="00-setup.html#secure-cluster">Secure the Cluster</a>
   </li>
   <li class="nav-item" data-depth="2">
-    <a class="nav-link" href="00-setup.html#check-scanner">Check the Scanner</a>
+    <a class="nav-link" href="00-setup.html#check-scanner">Check the Scanner and the Hub</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#option-b">Option B: Quick Login</a>
   </li>
 </ul>
   </li>
   <li class="nav-item" data-depth="1">
     <button class="nav-item-toggle"></button>
-    <a class="nav-link" href="01-inventory-cve.html">Step 1: Inventory and CVE Posture</a>
+    <a class="nav-link" href="01-inventory-cve.html">Step 1: Know Your Images</a>
 <ul class="nav-list">
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="01-inventory-cve.html#tag-images">Publish Two Application Versions</a>
@@ -118,7 +130,7 @@
   </li>
   <li class="nav-item" data-depth="1">
     <button class="nav-item-toggle"></button>
-    <a class="nav-link" href="02-image-compliance.html">Step 2: Image Compliance</a>
+    <a class="nav-link" href="02-image-compliance.html">Step 2: Alert, Then Block</a>
 <ul class="nav-list">
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="02-image-compliance.html#alert-sink">Set Up an Alert Receiver</a>
@@ -178,10 +190,10 @@
   </li>
   <li class="nav-item" data-depth="1">
     <button class="nav-item-toggle"></button>
-    <a class="nav-link" href="05-acs-acm.html">Step 5: ACS and ACM</a>
+    <a class="nav-link" href="05-acs-acm.html">Step 5: Keep Enforcement On</a>
 <ul class="nav-list">
   <li class="nav-item" data-depth="2">
-    <a class="nav-link" href="05-acs-acm.html#check-hub">Check the ACM Hub</a>
+    <a class="nav-link" href="05-acs-acm.html#check-hub">Check the RHACM Hub</a>
   </li>
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="05-acs-acm.html#placement">Select the Clusters</a>
@@ -211,7 +223,7 @@
   <a href="index.html" class="home-link is-current"></a>
 <nav class="breadcrumbs" aria-label="breadcrumbs">
   <ul>
-    <li><a href="index.html">RHACS Image Security Workshop</a></li>
+    <li><a href="index.html">Image Security with RHACS: From Inventory to Enforcement</a></li>
     <li><a href="index.html">Overview</a></li>
   </ul>
 </nav>
@@ -219,12 +231,12 @@
   </div>
   <div class="content">
 <article class="doc">
-<h1 class="page">RHACS Image Security Workshop</h1>
+<h1 class="page">Image Security with RHACS: From Inventory to Enforcement</h1>
 <div class="sect1 text-center strong">
 <h2>Know which images run on your cluster and stop the ones you do not want</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>In this workshop you use Red Hat Advanced Cluster Security for Kubernetes (RHACS) on one OpenShift cluster. You start by listing the images that run and the fixable CVEs they carry. Then you write policies that alert on outdated or untrusted images and, once you trust them, block those images at admission. You move the policies into Git so that OpenShift GitOps keeps them in sync, and you finish with Red Hat Advanced Cluster Management (RHACM) keeping ACS and its admission enforcement in place.</p>
+<p>In this workshop you use Red Hat Advanced Cluster Security for Kubernetes (RHACS) on one OpenShift cluster. You start by finding out which images run, which version and Red Hat build each one is, and which of their CVEs have a fix. Then you write policies that alert on outdated or untrusted images and, once you trust them, block those images at admission. You move the policies into Git so that OpenShift GitOps keeps them in sync, and you finish with Red Hat Advanced Cluster Management (RHACM) keeping ACS and its admission enforcement in place.</p>
 </div>
 </div>
 </div>
@@ -235,27 +247,27 @@
 <div class="title"><a href="00-setup.html" class="xref page">Cluster Setup</a></div>
 <ul>
 <li>
-<p><a href="00-setup.html#export-variables" class="xref page">Export variables</a></p>
+<p><a href="00-setup.html#export-variables" class="xref page">Create myenv.sh</a></p>
 </li>
 <li>
 <p><a href="00-setup.html#install-operators" class="xref page">Install the operators</a></p>
 </li>
 <li>
-<p><a href="00-setup.html#install-acs" class="xref page">Install ACS</a></p>
+<p><a href="00-setup.html#secure-cluster" class="xref page">Secure the cluster</a></p>
 </li>
 </ul>
 </div>
 <div class="ulist tile">
-<div class="title"><a href="01-inventory-cve.html" class="xref page">Step 1: Inventory and CVE posture</a></div>
+<div class="title"><a href="01-inventory-cve.html" class="xref page">Step 1: Know Your Images</a></div>
 <ul>
 <li>
-<p><a href="01-inventory-cve.html#inventory" class="xref page">List what is running</a></p>
+<p><a href="01-inventory-cve.html#tag-images" class="xref page">Application versions</a></p>
 </li>
 <li>
 <p><a href="01-inventory-cve.html#build-behind-tag" class="xref page">Build behind a tag</a></p>
 </li>
 <li>
-<p><a href="01-inventory-cve.html#explore-portal" class="xref page">Explore CVEs</a></p>
+<p><a href="01-inventory-cve.html#explore-portal" class="xref page">Fixable CVEs</a></p>
 </li>
 <li>
 <p><a href="01-inventory-cve.html#apply-policy" class="xref page">CVE policy</a></p>
@@ -263,7 +275,7 @@
 </ul>
 </div>
 <div class="ulist tile">
-<div class="title"><a href="02-image-compliance.html" class="xref page">Step 2: Image compliance</a></div>
+<div class="title"><a href="02-image-compliance.html" class="xref page">Step 2: Alert, Then Block</a></div>
 <ul>
 <li>
 <p><a href="02-image-compliance.html#inform-alert" class="xref page">Alert</a></p>
@@ -277,7 +289,7 @@
 </ul>
 </div>
 <div class="ulist tile">
-<div class="title"><a href="03-policies-as-code.html" class="xref page">Step 3: Policies as code</a></div>
+<div class="title"><a href="03-policies-as-code.html" class="xref page">Step 3: Policies as Code</a></div>
 <ul>
 <li>
 <p><a href="03-policies-as-code.html#create-app" class="xref page">Argo CD takes over</a></p>
@@ -291,7 +303,7 @@
 </ul>
 </div>
 <div class="ulist tile">
-<div class="title"><a href="05-acs-acm.html" class="xref page">Step 5: ACS and ACM</a></div>
+<div class="title"><a href="05-acs-acm.html" class="xref page">Step 5: Keep Enforcement On</a></div>
 <ul>
 <li>
 <p><a href="05-acs-acm.html#baseline-policy" class="xref page">Baseline policy</a></p>

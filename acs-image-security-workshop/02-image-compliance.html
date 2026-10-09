@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>RHACS Image Security Workshop :: RHACS Image Security Workshop</title>
+    <title>Step 2 - Alert, Then Block: Image compliance policies :: Image Security with RHACS: From Inventory to Enforcement</title>
     <link rel="canonical" href="https://luisevm.github.io/acs-image-security-workshop/acs-image-security-workshop/02-image-compliance.html">
     <link rel="prev" href="01-inventory-cve.html">
     <link rel="next" href="03-policies-as-code.html">
@@ -15,7 +15,7 @@
   <nav class="navbar">
     <div class="navbar-brand">
       <a class="navbar-item" href="https://developers.redhat.com" target="_blank"><img src="../_/img/RHDLogo.svg" height="40px" alt="Red Hat Developer Program"></a>
-      <a class="navbar-item" style="font-size: 24px; color: white" href="https://luisevm.github.io/acs-image-security-workshop">RHACS Image Security Workshop</a>
+      <a class="navbar-item" style="font-size: 24px; color: white" href="https://luisevm.github.io/acs-image-security-workshop">Image Security with RHACS: From Inventory to Enforcement</a>
       <button class="navbar-burger" data-target="topbar-nav">
         <span></span>
         <span></span>
@@ -62,7 +62,10 @@
     <a class="nav-link" href="00-setup.html#prerequisites">Prerequisites</a>
   </li>
   <li class="nav-item" data-depth="2">
-    <a class="nav-link" href="00-setup.html#export-variables">Export Workshop Variables</a>
+    <a class="nav-link" href="00-setup.html#clone-repo">Fork and Clone the Repository</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#export-variables">Create myenv.sh</a>
   </li>
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="00-setup.html#login-clusters">Log In to the Cluster</a>
@@ -71,19 +74,28 @@
     <a class="nav-link" href="00-setup.html#install-operators">Install the Operators</a>
   </li>
   <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#install-acm-hub">Start the RHACM Hub</a>
+  </li>
+  <li class="nav-item" data-depth="2">
     <a class="nav-link" href="00-setup.html#install-acs">Install ACS Central</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#roxctl-token">Download roxctl and Create a Token</a>
   </li>
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="00-setup.html#secure-cluster">Secure the Cluster</a>
   </li>
   <li class="nav-item" data-depth="2">
-    <a class="nav-link" href="00-setup.html#check-scanner">Check the Scanner</a>
+    <a class="nav-link" href="00-setup.html#check-scanner">Check the Scanner and the Hub</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#option-b">Option B: Quick Login</a>
   </li>
 </ul>
   </li>
   <li class="nav-item" data-depth="1">
     <button class="nav-item-toggle"></button>
-    <a class="nav-link" href="01-inventory-cve.html">Step 1: Inventory and CVE Posture</a>
+    <a class="nav-link" href="01-inventory-cve.html">Step 1: Know Your Images</a>
 <ul class="nav-list">
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="01-inventory-cve.html#tag-images">Publish Two Application Versions</a>
@@ -119,7 +131,7 @@
   </li>
   <li class="nav-item is-current-page" data-depth="1">
     <button class="nav-item-toggle"></button>
-    <a class="nav-link" href="02-image-compliance.html">Step 2: Image Compliance</a>
+    <a class="nav-link" href="02-image-compliance.html">Step 2: Alert, Then Block</a>
 <ul class="nav-list">
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="#alert-sink">Set Up an Alert Receiver</a>
@@ -179,10 +191,10 @@
   </li>
   <li class="nav-item" data-depth="1">
     <button class="nav-item-toggle"></button>
-    <a class="nav-link" href="05-acs-acm.html">Step 5: ACS and ACM</a>
+    <a class="nav-link" href="05-acs-acm.html">Step 5: Keep Enforcement On</a>
 <ul class="nav-list">
   <li class="nav-item" data-depth="2">
-    <a class="nav-link" href="05-acs-acm.html#check-hub">Check the ACM Hub</a>
+    <a class="nav-link" href="05-acs-acm.html#check-hub">Check the RHACM Hub</a>
   </li>
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="05-acs-acm.html#placement">Select the Clusters</a>
@@ -212,15 +224,15 @@
   <a href="index.html" class="home-link"></a>
 <nav class="breadcrumbs" aria-label="breadcrumbs">
   <ul>
-    <li><a href="index.html">RHACS Image Security Workshop</a></li>
-    <li><a href="02-image-compliance.html">Step 2: Image Compliance</a></li>
+    <li><a href="index.html">Image Security with RHACS: From Inventory to Enforcement</a></li>
+    <li><a href="02-image-compliance.html">Step 2: Alert, Then Block</a></li>
   </ul>
 </nav>
   <div class="edit-this-page"><a href="https://github.com/luisevm/acs-image-security-workshop/edit/main/documentation/modules/ROOT/pages/02-image-compliance.adoc">Edit this Page</a></div>
   </div>
   <div class="content">
 <article class="doc">
-<h1 class="page">RHACS Image Security Workshop</h1>
+<h1 class="page">Step 2 - Alert, Then Block: Image compliance policies</h1>
 <div id="preamble">
 <div class="sectionbody">
 <div class="paragraph">
@@ -436,6 +448,8 @@ jq -r '.results[].violatedPolicies[] | [.name, .severity, .failingCheck] | @tsv'
 <div class="listingblock console-output">
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">exit code: 0
+Fixable Severity at least Important	HIGH	false
+Workshop - Fixable CVEs of severity Important or higher	HIGH	false
 Container with privilege escalation allowed	MEDIUM	false
 Pod Service Account Token Automatically Mounted	MEDIUM	false
 Workshop - Image uses the latest tag	MEDIUM	false
@@ -448,7 +462,7 @@ Red Hat Package Manager in Image	LOW	false</code></pre>
 <p><code>roxctl</code> also prints a <code>WARN</code> line about deployments without a namespace. The test manifest sets <code>namespace: acs-image-demo</code>, so you can ignore it.</p>
 </div>
 <div class="paragraph">
-<p>In the second validation run, a few hours later, the list also had <strong>Fixable Severity at least Important</strong> and <strong>Workshop - Fixable CVEs of severity Important or higher</strong>. Red Hat had published a fix for an <code>openssl-libs</code> CVE in the meantime, and the UBI 9 minimal image behind <code>latest</code> did not include it yet. CVE results change with the published data, so your list can differ.</p>
+<p>The two fixable-CVE policies match because the plain Red Hat image <code>ubi9/ubi-minimal:latest</code> missed a published fix for <code>openssl-libs</code> on the validation date. On a day when the Red Hat image includes every fix, those two lines are not there.</p>
 </div>
 </div>
 </details>
@@ -743,7 +757,7 @@ jq -r '.results[].violatedPolicies[] | [.name, .severity, .failingCheck] | @tsv'
 <summary class="title">Verify: The workshop policies now fail the check</summary>
 <div class="content">
 <div class="paragraph">
-<p>In Step 1 only the built-in policy had <code>failingCheck</code> set to <code>true</code>. Now the two workshop policies that the legacy image violates have it as well:</p>
+<p>In Step 1 only the built-in policy had <code>failingCheck</code> set to <code>true</code>. Now the two workshop policies that version <code>1.0.0</code> violates have it as well:</p>
 </div>
 <div class="listingblock console-output">
 <div class="content">
@@ -867,11 +881,11 @@ Pod Service Account Token Automatically Mounted	ACTIVE</code></pre>
 <tbody>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">The policies are applied by hand with <code>oc apply</code>, with no review and no record of who changed what</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="03-policies-as-code.html" class="xref page">Step 3: Policies as code</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="03-policies-as-code.html" class="xref page">Step 3: Policies as Code</a></p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Someone can edit or delete a policy and nothing puts it back</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="03-policies-as-code.html" class="xref page">Step 3: Policies as code</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="03-policies-as-code.html" class="xref page">Step 3: Policies as Code</a></p></td>
 </tr>
 </tbody>
 </table>
@@ -967,7 +981,7 @@ oc --context hub delete -f 02-image-compliance/01-alert-sink-image.yaml --ignore
 </div>
 </div>
 <nav class="pagination">
-  <span class="prev"><a href="01-inventory-cve.html">Step 1: Inventory and CVE Posture</a></span>
+  <span class="prev"><a href="01-inventory-cve.html">Step 1: Know Your Images</a></span>
   <span class="next"><a href="03-policies-as-code.html">Step 3: Policies as Code</a></span>
 </nav>
 </article>

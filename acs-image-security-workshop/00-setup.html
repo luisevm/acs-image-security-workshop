@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>RHACS Image Security Workshop :: RHACS Image Security Workshop</title>
+    <title>Cluster Setup :: Image Security with RHACS: From Inventory to Enforcement</title>
     <link rel="canonical" href="https://luisevm.github.io/acs-image-security-workshop/acs-image-security-workshop/00-setup.html">
     <link rel="prev" href="index.html">
     <link rel="next" href="01-inventory-cve.html">
@@ -15,7 +15,7 @@
   <nav class="navbar">
     <div class="navbar-brand">
       <a class="navbar-item" href="https://developers.redhat.com" target="_blank"><img src="../_/img/RHDLogo.svg" height="40px" alt="Red Hat Developer Program"></a>
-      <a class="navbar-item" style="font-size: 24px; color: white" href="https://luisevm.github.io/acs-image-security-workshop">RHACS Image Security Workshop</a>
+      <a class="navbar-item" style="font-size: 24px; color: white" href="https://luisevm.github.io/acs-image-security-workshop">Image Security with RHACS: From Inventory to Enforcement</a>
       <button class="navbar-burger" data-target="topbar-nav">
         <span></span>
         <span></span>
@@ -62,7 +62,10 @@
     <a class="nav-link" href="#prerequisites">Prerequisites</a>
   </li>
   <li class="nav-item" data-depth="2">
-    <a class="nav-link" href="#export-variables">Export Workshop Variables</a>
+    <a class="nav-link" href="#clone-repo">Fork and Clone the Repository</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#export-variables">Create myenv.sh</a>
   </li>
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="#login-clusters">Log In to the Cluster</a>
@@ -71,19 +74,28 @@
     <a class="nav-link" href="#install-operators">Install the Operators</a>
   </li>
   <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#install-acm-hub">Start the RHACM Hub</a>
+  </li>
+  <li class="nav-item" data-depth="2">
     <a class="nav-link" href="#install-acs">Install ACS Central</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#roxctl-token">Download roxctl and Create a Token</a>
   </li>
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="#secure-cluster">Secure the Cluster</a>
   </li>
   <li class="nav-item" data-depth="2">
-    <a class="nav-link" href="#check-scanner">Check the Scanner</a>
+    <a class="nav-link" href="#check-scanner">Check the Scanner and the Hub</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#option-b">Option B: Quick Login</a>
   </li>
 </ul>
   </li>
   <li class="nav-item" data-depth="1">
     <button class="nav-item-toggle"></button>
-    <a class="nav-link" href="01-inventory-cve.html">Step 1: Inventory and CVE Posture</a>
+    <a class="nav-link" href="01-inventory-cve.html">Step 1: Know Your Images</a>
 <ul class="nav-list">
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="01-inventory-cve.html#tag-images">Publish Two Application Versions</a>
@@ -119,7 +131,7 @@
   </li>
   <li class="nav-item" data-depth="1">
     <button class="nav-item-toggle"></button>
-    <a class="nav-link" href="02-image-compliance.html">Step 2: Image Compliance</a>
+    <a class="nav-link" href="02-image-compliance.html">Step 2: Alert, Then Block</a>
 <ul class="nav-list">
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="02-image-compliance.html#alert-sink">Set Up an Alert Receiver</a>
@@ -179,10 +191,10 @@
   </li>
   <li class="nav-item" data-depth="1">
     <button class="nav-item-toggle"></button>
-    <a class="nav-link" href="05-acs-acm.html">Step 5: ACS and ACM</a>
+    <a class="nav-link" href="05-acs-acm.html">Step 5: Keep Enforcement On</a>
 <ul class="nav-list">
   <li class="nav-item" data-depth="2">
-    <a class="nav-link" href="05-acs-acm.html#check-hub">Check the ACM Hub</a>
+    <a class="nav-link" href="05-acs-acm.html#check-hub">Check the RHACM Hub</a>
   </li>
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="05-acs-acm.html#placement">Select the Clusters</a>
@@ -212,7 +224,7 @@
   <a href="index.html" class="home-link"></a>
 <nav class="breadcrumbs" aria-label="breadcrumbs">
   <ul>
-    <li><a href="index.html">RHACS Image Security Workshop</a></li>
+    <li><a href="index.html">Image Security with RHACS: From Inventory to Enforcement</a></li>
     <li><a href="00-setup.html">Cluster Setup</a></li>
   </ul>
 </nav>
@@ -220,7 +232,7 @@
   </div>
   <div class="content">
 <article class="doc">
-<h1 class="page">RHACS Image Security Workshop</h1>
+<h1 class="page">Cluster Setup</h1>
 <div id="preamble">
 <div class="sectionbody">
 <div class="paragraph">
@@ -756,7 +768,7 @@ source myenv.sh</code></pre>
 <i class="fa icon-note" title="Note"></i>
 </td>
 <td class="content">
-The workshop uses <code>--insecure-skip-tls-verify</code> with <code>roxctl</code> and <code>-k</code> with <code>curl</code> because Central uses a self-signed certificate. In production, configure the clients to trust the Central CA instead.
+The workshop uses <code>--insecure-skip-tls-verify</code> with <code>roxctl</code> and <code>-k</code> with <code>curl</code> because a newly installed Central uses a self-signed certificate. In production, configure the clients to trust the Central CA instead.
 </td>
 </tr>
 </table>
@@ -838,7 +850,7 @@ oc --context hub rollout status deploy/admission-control -n stackrox --timeout=6
 <div class="ulist">
 <ul>
 <li>
-<p><code>enforcement: Enabled</code> turns on hard enforcement through the validating webhook. The <code>listenOn*</code> fields used by older guides are deprecated since RHACS 4.9.</p>
+<p><code>enforcement: Enabled</code> turns on hard enforcement through the validating webhook. It is the default for new installations since RHACS 4.9, and the <code>listenOn*</code> fields used by older guides are deprecated.</p>
 </li>
 <li>
 <p><code>contactImageScanners: ScanIfMissing</code> lets the admission controller scan an image it has not seen before. Without it, decisions about CVEs and image age only use scan results that Central already has.</p>
@@ -1031,14 +1043,21 @@ Roles:
 <h2 id="_reset"><a class="anchor" href="#_reset"></a>Reset</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>The workshop resets never remove this setup. Use these commands only to remove everything from the cluster. They run in reverse order: the hub and the secured cluster go first because they depend on their operators, and Central goes after the secured cluster that reports to it.</p>
+<p>The workshop resets never remove this setup. Use these commands only to remove everything from the cluster. The <code>delete_operator</code> function deletes only the CSV that each subscription installed. A namespace also lists copies of the CSVs of operators installed for all namespaces, and <code>oc delete csv --all</code> would remove those copies as well. They run in reverse order: the hub and the secured cluster go first because they depend on their operators, and Central goes after the secured cluster that reports to it.</p>
 </div>
 <div class="listingblock console-input">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># 1. RHACM hub, then the RHACM operator
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash"># Deletes one operator: its subscription, then only the CSV that the subscription installed
+delete_operator() {
+  csv=$(oc --context hub get subscriptions.operators.coreos.com "$2" -n "$1" \
+    -o jsonpath='{.status.installedCSV}' 2&gt;/dev/null)
+  oc --context hub delete subscriptions.operators.coreos.com "$2" -n "$1" --ignore-not-found
+  if [ -n "$csv" ]; then oc --context hub delete csv "$csv" -n "$1" --ignore-not-found; fi
+}
+
+# 1. RHACM hub, then the RHACM operator
 oc --context hub delete multiclusterhub multiclusterhub -n open-cluster-management --ignore-not-found --wait
-oc --context hub delete subscription advanced-cluster-management -n open-cluster-management --ignore-not-found
-oc --context hub delete csv -n open-cluster-management --all --ignore-not-found
+delete_operator open-cluster-management advanced-cluster-management
 oc --context hub delete namespace open-cluster-management --ignore-not-found
 
 # 2. Secured cluster services, init bundle secrets, then Central
@@ -1048,11 +1067,9 @@ oc --context hub delete central stackrox-central-services -n stackrox --ignore-n
 oc --context hub delete namespace stackrox --ignore-not-found
 
 # 3. Operators
-oc --context hub delete subscription openshift-gitops-operator -n openshift-gitops-operator --ignore-not-found
-oc --context hub delete csv -n openshift-gitops-operator --all --ignore-not-found
+delete_operator openshift-gitops-operator openshift-gitops-operator
 oc --context hub delete namespace openshift-gitops openshift-gitops-operator --ignore-not-found
-oc --context hub delete subscription rhacs-operator -n rhacs-operator --ignore-not-found
-oc --context hub delete csv -n rhacs-operator --all --ignore-not-found
+delete_operator rhacs-operator rhacs-operator
 oc --context hub delete namespace rhacs-operator --ignore-not-found
 
 # 4. Local files
@@ -1063,7 +1080,7 @@ rm -f roxctl .rox-token "${ACS_CLUSTER_NAME}-init-bundle.yaml"</code></pre>
 </div>
 <nav class="pagination">
   <span class="prev"><a href="index.html">Overview</a></span>
-  <span class="next"><a href="01-inventory-cve.html">Step 1: Inventory and CVE Posture</a></span>
+  <span class="next"><a href="01-inventory-cve.html">Step 1: Know Your Images</a></span>
 </nav>
 </article>
 <aside class="toc sidebar" data-title="Contents" data-levels="2">
