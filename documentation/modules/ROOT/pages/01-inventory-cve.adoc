@@ -233,9 +233,18 @@ legacy-app:1.0.0	ubi8	8.4-213	rhel:8
 [#search-cluster]
 === 5. Search images across the cluster
 
-*What:* Ask ACS for every deployment on the cluster that uses the `latest` tag or an image older than 365 days.
+*What:* Ask ACS, in the portal and through the API, for every deployment on the cluster that uses the `latest` tag or an image older than 365 days.
 
 *Why:* The same questions matter outside the workshop namespace, and ACS answers them for every namespace at once.
+
+In the ACS portal, click *Search* in the top bar. In the filter box, type `Image Created Time`, select the suggestion *Image Created Time:*, type `>365d`, and press kbd:[Enter]. The left column counts the matches per resource type. Select *Deployments* to see the workloads that run an old image. For the tag, start a new search with `Image Tag` and the value `latest`.
+
+.Search - deployments that run an image older than 365 days, across all namespaces
+image::01-search-old-images.png[ACS Search page with the filter Image Created Time >365d and the Deployments category listing keycloak-pgsql, legacy-app, lightspeed-postgres-server, and showroom]
+
+Each row links to the deployment in *Risk* and to its *Violations*. The *Images* category also lists images that ACS scanned earlier but that no longer run, so *Deployments* is the better answer to "what runs today".
+
+The API takes the same queries:
 
 [.console-input]
 [source,bash,subs="+macros,+attributes"]
@@ -247,11 +256,13 @@ for q in "Image Tag:latest" "Image Created Time:>365d"; do
 done
 ----
 
-The query syntax is the same as in the search bar of the portal: `<field>:<value>`, with `+` between several criteria. Other fields that work the same way are `Image Registry` (for example `Image Registry:quay.io`), `Image OS` (`Image OS:rhel:8`), and `Namespace`. `Namespace:acs-image-demo+Image Tag:1.0.0` combines two of them and returns `legacy-app`.
+The query syntax is the same as in the search box of the portal: `<field>:<value>`, with `+` between several criteria. Other fields that work the same way are `Image Registry` (for example `Image Registry:quay.io`), `Image OS` (`Image OS:rhel:8`), and `Namespace`. `Namespace:acs-image-demo+Image Tag:1.0.0` combines two of them and returns `legacy-app`.
 
 .Verify: legacy-app is one of the old images on the cluster
 [%collapsible]
 ====
+The portal shows four deployments under *Deployments*, and the API loop prints the same four:
+
 [.console-output]
 [source,bash]
 ----
