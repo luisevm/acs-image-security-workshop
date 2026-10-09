@@ -1,6 +1,5 @@
 :experimental:
 :source-highlighter: highlightjs
-:title: Image Security with RHACS: From Inventory to Enforcement
 :hub-context: hub
 :acs-min-version: 4.9
 // Versions installed on the validation cluster
