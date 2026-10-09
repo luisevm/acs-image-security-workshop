@@ -20,7 +20,7 @@ Sensor watches the workloads on the cluster and sends their image references to 
 [#tag-images]
 === 1. Publish the two application versions
 
-icon:clock[] ~35 seconds (the in-cluster build of `current-app:2.0.0`)
+icon:clock[] ~20-35 seconds (the in-cluster build of `current-app:2.0.0`)
 
 *What:* Create the `acs-image-demo` namespace and the two image tags `legacy-app:1.0.0` and `current-app:2.0.0` in the internal registry.
 
@@ -63,8 +63,8 @@ oc --context {hub-context} get istag -n acs-image-demo
 [source,bash]
 ----
 NAME                IMAGE REFERENCE                                                                                                                                       UPDATED
-current-app:2.0.0   image-registry.openshift-image-registry.svc:5000/acs-image-demo/current-app@sha256:d11758c5fdeb3046b0277f8ba7fd729bd8cb744d2512eabe0595a55e91963afd   3 seconds ago
-legacy-app:1.0.0    image-registry.openshift-image-registry.svc:5000/acs-image-demo/legacy-app@sha256:53d3a0837cf04ba4c687ddb39b487dc86efdbc14bd528778a7fa522637b1a3a0    32 seconds ago
+current-app:2.0.0   image-registry.openshift-image-registry.svc:5000/acs-image-demo/current-app@sha256:bd60897b4e28c855833e93d8a8266b5e8c2c2d9a9c9daa4af47084d7dbb74167   About a minute ago
+legacy-app:1.0.0    image-registry.openshift-image-registry.svc:5000/acs-image-demo/legacy-app@sha256:53d3a0837cf04ba4c687ddb39b487dc86efdbc14bd528778a7fa522637b1a3a0    About a minute ago
 ----
 
 Each tag resolves to a digest. The digest of `current-app:2.0.0` is new, because the build created a new image. The digest of `legacy-app:1.0.0` is the digest of the Red Hat image.
@@ -136,6 +136,11 @@ curl -skG -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROU
 
 The ACS list shows each image with its build date, its number of CVEs, and how many of them have a fix.
 
+The same inventory is in the ACS portal. Go to *Vulnerability Management > Results*, click *Clear filters* to remove the default severity and status filters, then select the entity *Namespace*, type `acs-image-demo`, and press kbd:[Enter]. Select the *Image* view above the table.
+
+.Vulnerability Management > Results, Image view - both versions with their CVEs by severity and their age
+image::01-images-inventory.png[Image view filtered to namespace acs-image-demo listing legacy-app:1.0.0 with 86 Important CVEs and age 4 years, and current-app:2.0.0 with 7 Important CVEs and age 33 seconds]
+
 .Verify: Each pod runs a version tag, and ACS has scanned both images
 [%collapsible]
 ====
@@ -145,8 +150,8 @@ The `IMAGE` column shows the version tags, and `IMAGE_ID` shows the digests behi
 [source,bash]
 ----
 POD                            IMAGE                                          IMAGE_ID
-current-app-864b5c97f8-8blrv   <registry>/acs-image-demo/current-app:2.0.0   <registry>/acs-image-demo/current-app@sha256:d11758c5fdeb...
-legacy-app-554b996c89-lplkb    <registry>/acs-image-demo/legacy-app:1.0.0    <registry>/acs-image-demo/legacy-app@sha256:53d3a0837cf0...
+current-app-864b5c97f8-qh5st   <registry>/acs-image-demo/current-app:2.0.0   <registry>/acs-image-demo/current-app@sha256:bd60897b4e28...
+legacy-app-554b996c89-4n7j8    <registry>/acs-image-demo/legacy-app:1.0.0    <registry>/acs-image-demo/legacy-app@sha256:53d3a0837cf0...
 ----
 
 `<registry>` is `image-registry.openshift-image-registry.svc:5000`. The ACS query lists the same two images:
@@ -154,11 +159,11 @@ legacy-app-554b996c89-lplkb    <registry>/acs-image-demo/legacy-app:1.0.0    <re
 [.console-output]
 [source,bash]
 ----
-image-registry.openshift-image-registry.svc:5000/acs-image-demo/legacy-app:1.0.0	2021-10-26	781	383
-image-registry.openshift-image-registry.svc:5000/acs-image-demo/current-app:2.0.0	2026-10-09	129	0
+image-registry.openshift-image-registry.svc:5000/acs-image-demo/legacy-app:1.0.0	2021-10-26	787	384
+image-registry.openshift-image-registry.svc:5000/acs-image-demo/current-app:2.0.0	2026-10-09	127	0
 ----
 
-Version `1.0.0` is almost five years old and has 383 CVEs with a fix. Version `2.0.0` was built today and has none with a fix. If the ACS list is empty or shows 0 CVEs, Sensor has not reported the workloads yet. Wait 30 seconds and run the `curl` command again.
+Version `1.0.0` is almost five years old and has 384 CVEs with a fix. Version `2.0.0` was built today and has none with a fix. If the ACS list is empty or shows 0 CVEs, Sensor has not reported the workloads yet. Wait 30 seconds and run the `curl` command again.
 ====
 
 '''
@@ -298,7 +303,7 @@ Switch to the CVE view, open one CVE, and expand the image row. The *CVE fixed i
 ====
 The filtered view lists 71 CVEs, 1 image (`acs-image-demo/legacy-app:1.0.0` in `image-registry.openshift-image-registry.svc:5000`), and 1 deployment. For the CVE `CVE-2018-25032`, the expanded row showed the component `zlib` at version `1.2.11-17.el8`, fixed in `0:1.2.11-18.el8_5` by `RHSA-2022:1642`.
 
-NOTE: `current-app:2.0.0` is not in the list, although it is not free of CVEs. On the validation date it had five Important CVEs and none of them had a fix yet. Unfixed CVEs drop out of a *Fixable* filter, and they do not match the policy you add in sub-step 8. The base image alone had one more Important CVE, in `openssl-libs`, with a fix that Red Hat had published but not yet built into UBI 9 minimal. The build in sub-step 1 installed that fix.
+NOTE: `current-app:2.0.0` is not in the list, although it is not free of CVEs. On the validation date it had seven Important CVEs and none of them had a fix yet. Unfixed CVEs drop out of a *Fixable* filter, and they do not match the policy you add in sub-step 8. The base image alone had one more Important CVE, in `openssl-libs`, with a fix that Red Hat had published but not yet built into UBI 9 minimal. The build in sub-step 1 installed that fix.
 ====
 
 '''
@@ -334,6 +339,11 @@ done
 
 Without `--cluster`, Central tries to pull the image itself and fails with `no matching image registries found`, because it has no credentials for the internal registry.
 
+The portal shows the same counts on the image page. Open `acs-image-demo/legacy-app:1.0.0` as in sub-step 4 and stay on the *Vulnerabilities* tab: *CVEs by severity* matches the scan summary, and *CVEs by status* splits the CVEs into those with and without a fix.
+
+.Image page, Vulnerabilities tab - the scan summary of version 1.0.0
+image::01-image-vulnerabilities.png[Vulnerabilities tab of legacy-app:1.0.0 with 86 Important, 415 Moderate, and 286 Low CVEs, 384 with available fixes and 403 without]
+
 .Verify: Version 1.0.0 has far more CVEs than version 2.0.0
 [%collapsible]
 ====
@@ -343,7 +353,7 @@ The table starts with a summary line, then one row per CVE. Further right, each 
 [source,bash]
 ----
 Scan results for image: image-registry.openshift-image-registry.svc:5000/acs-image-demo/legacy-app:1.0.0
-(TOTAL-COMPONENTS: 53, TOTAL-VULNERABILITIES: 84, LOW: 0, MODERATE: 0, IMPORTANT: 84, CRITICAL: 0)
+(TOTAL-COMPONENTS: 53, TOTAL-VULNERABILITIES: 86, LOW: 0, MODERATE: 0, IMPORTANT: 86, CRITICAL: 0)
 
 +----------------------------------------+-------------------+-----------------+-----------+------+------------
 |               COMPONENT                |      VERSION      |       CVE       | SEVERITY  | CVSS |
@@ -358,9 +368,9 @@ The loop prints the severity counts of both versions:
 [source,bash]
 ----
 == legacy-app:1.0.0
-{"CRITICAL":0,"IMPORTANT":84,"LOW":285,"MODERATE":412,"TOTAL-COMPONENTS":112,"TOTAL-VULNERABILITIES":781}
+{"CRITICAL":0,"IMPORTANT":86,"LOW":286,"MODERATE":415,"TOTAL-COMPONENTS":112,"TOTAL-VULNERABILITIES":787}
 == current-app:2.0.0
-{"CRITICAL":0,"IMPORTANT":5,"LOW":56,"MODERATE":68,"TOTAL-COMPONENTS":37,"TOTAL-VULNERABILITIES":129}
+{"CRITICAL":0,"IMPORTANT":7,"LOW":56,"MODERATE":64,"TOTAL-COMPONENTS":38,"TOTAL-VULNERABILITIES":127}
 ----
 
 The numbers change as Red Hat publishes new CVE data.
@@ -384,6 +394,11 @@ oc --context {hub-context} apply -f 01-inventory-cve/05-policy-fixable-important
 ----
 
 NOTE: `SecurityPolicy` resources always go in the namespace where Central runs (`stackrox`). The `scope` field inside the policy decides which workloads it checks.
+
+In the ACS portal, go to *Platform Configuration > Policy Management*, filter by the policy name `Workshop`, and open *Workshop - Fixable CVEs of severity Important or higher*. *Origin* is *Externally managed*, because the policy comes from a custom resource. *Response* is *Inform*: the policy reports and blocks nothing.
+
+.Policy Management - the CVE policy as Central received it from the custom resource
+image::01-policy-inform.png[Policy page of Workshop - Fixable CVEs of severity Important or higher with origin Externally managed, response Inform, the criteria Fixable and Severity at least Important, and the namespace acs-image-demo as included resource]
 
 .Verify: Central accepted the policy
 [%collapsible]

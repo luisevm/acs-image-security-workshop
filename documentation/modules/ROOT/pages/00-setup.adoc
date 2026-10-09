@@ -398,6 +398,11 @@ source myenv.sh
 
 Central serves `roxctl-linux-amd64`, `roxctl-linux-arm64`, `roxctl-darwin-amd64`, and `roxctl-darwin-arm64`. There is no plain `roxctl-darwin` file.
 
+The token is listed in the ACS portal under *Platform Configuration > Integrations*, tab *Authentication*, tile *API Token*. The portal shows its name, role, and expiration date, never the token itself.
+
+.Integrations > API Token - the workshop token with the Admin role
+image::00-api-token.png[API Token list with the token acs-image-workshop, role Admin, expiring in one year, next to a token created by the cluster provisioning]
+
 NOTE: The workshop uses `--insecure-skip-tls-verify` with `roxctl` and `-k` with `curl` because a newly installed Central uses a self-signed certificate. In production, configure the clients to trust the Central CA instead.
 
 .Verify: `roxctl` reaches Central with the token

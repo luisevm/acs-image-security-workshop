@@ -50,6 +50,11 @@ envsubst < 02-image-compliance/03-notifier.json \
     -X POST "https://${ACS_CENTRAL_ROUTE}/v1/notifiers" -d @- | jq '{id, name, type}'
 ----
 
+In the ACS portal, go to *Platform Configuration > Integrations* and open the *Notifier* tab. The *Generic Webhook* tile shows `1`. Click it to see `workshop-alert-sink` with its endpoint. The other tiles are the systems ACS can send alerts to directly, such as Slack, email, Jira, Splunk, and Microsoft Teams.
+
+.Integrations > Notifier - the generic webhook used in this workshop and the other notifier types
+image::02-notifiers.png[Notifier integrations tab with tiles for Slack, Generic Webhook with one integration, Jira, Email, Google Cloud SCC, Splunk, PagerDuty, Sumo Logic, Microsoft Teams, AWS Security Hub, Syslog, and Microsoft Sentinel]
+
 .Verify: The notifier exists and Central can reach the receiver
 [%collapsible]
 ====
@@ -124,6 +129,11 @@ oc --context {hub-context} apply -f 02-image-compliance/policies/
 |===
 
 The `Image Age` value is a number of days. Version `1.0.0` was built in October 2021 and version `2.0.0` in Step 1, so only `legacy-app` matches.
+
+In *Platform Configuration > Policy Management*, filtered by the policy name `Workshop`, the four policies now show *1 Generic Webhook* in the *Notifiers* column.
+
+.Policy Management - the four workshop policies, each sending its violations to the webhook
+image::02-policies-inform.png[Policy Management list filtered by Workshop with four enabled, externally managed policies, each with 1 Generic Webhook notifier]
 
 .Verify: Central accepted all four policies
 [%collapsible]
@@ -257,6 +267,11 @@ oc --context {hub-context} get deploy -n acs-image-demo
 The enforced files differ from the inform files only by the `enforcementActions` list. Compare them with `diff 02-image-compliance/policies/01-policy-latest-tag.yaml 02-image-compliance/enforce/01-policy-latest-tag.yaml`.
 
 The admission controller started to reject new `latest`-tag deployments about five seconds after the apply on the validation cluster.
+
+Open the CVE policy in *Policy Management* again. In Step 1 its *Policy behavior* said *Response: Inform*. Now it says *Enforce*, and *Enforcement* lists the stages where ACS acts.
+
+.Policy Management > policy page - the CVE policy after the switch
+image::02-policy-enforce.png[Policy behavior section with lifecycle stages Build and Deploy, response Enforce, and enforcement Build and Deploy]
 
 WARNING: Turning on enforcement does not touch workloads that already run. `legacy-app` and `bad-latest` stayed at `1/1` after the switch, although the policies include `SCALE_TO_ZERO_ENFORCEMENT`. Their existing violations stay active, and enforcement applies the next time someone creates, updates, or scales them. Review the inform-mode violations before you enforce, and fix or remove the workloads that would be blocked.
 
@@ -485,6 +500,11 @@ curl -skG -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROU
 ----
 
 The built-in policy *Emergency Deployment Annotation* is enabled by default and records every use of the annotation. The workshop latest-tag policy also reports the deployment, and its alert lists `SCALE_TO_ZERO_ENFORCEMENT`. On the validation cluster, `breakglass-latest` was not scaled down and still ran at `1/1` 90 seconds later.
+
+In the portal, go to *Violations* and filter by the entity *Deployment* with the name `breakglass-latest`. The *Enforced* column says *Yes* for *Workshop - Image uses the latest tag*: ACS recorded the enforcement action, and the break-glass annotation still kept the deployment running.
+
+.Violations - the break-glass deployment and the Emergency Deployment Annotation record
+image::02-break-glass.png[Active violations of breakglass-latest, including Emergency Deployment Annotation and Workshop - Image uses the latest tag with Enforced Yes]
 
 .Verify: The deployment was admitted and the bypass is on record
 [%collapsible]

@@ -1,6 +1,6 @@
 # Validation handoff
 
-Setup and Steps 1, 2, 3, and 5 were run twice against a live cluster on 2026-10-08, with the Resets (5, 3, 2, 1) and the leftover check in between. On 2026-10-09 Step 1 was reworked around `x.y.z` application versions, and all Resets and Steps 1, 2, 3, and 5 were run a third time. Console outputs, timings, and screenshots on the pages come from those runs. One marker is left (see below). Delete this file once it is resolved.
+Setup and Steps 1, 2, 3, and 5 were run twice against a live cluster on 2026-10-08, with the Resets (5, 3, 2, 1) and the leftover check in between. On 2026-10-09 Step 1 was reworked around `x.y.z` application versions, and all Resets and Steps 1, 2, 3, and 5 were run a third time. A fourth run on the same day captured the ACS console screenshots at the matching point of each step. Console outputs, timings, and screenshots on the pages come from those runs. One marker is left (see below). Delete this file once it is resolved.
 
 ## Validation cluster
 
@@ -80,7 +80,7 @@ Estimated participant time with reading and the portal: Step 1 30-35 min (10 sub
 - `roxctl` downloads are `roxctl-<os>-<arch>`; `roxctl-darwin` does not exist.
 - The built-in policy *Fixable Severity at least Important* fails the build by default, so `roxctl image check` of the legacy image exits 1 already in Step 1.
 - `config-controller` only rewrites a policy in Central when the custom resource's spec changes. A portal edit stays until then.
-- In two of three runs, an Argo CD prune left a `SecurityPolicy` stuck on its finalizer after the policy was gone from Central (`policy "" is not externally managed`). The Step 3 page has the check and the workaround.
+- In three of four runs, an Argo CD prune left a `SecurityPolicy` stuck on its finalizer after the policy was gone from Central (`policy "" is not externally managed`). The Step 3 page has the check and the workaround.
 - After a manual change to `admissionControl.enforcement`, RHACM restores it within a second, but the admission controller rollout admits requests for about a minute.
 - CVE data changes during the day: between the two runs a fix for an `openssl-libs` CVE was published that the current UBI 9 minimal image does not include yet. Step 2 notes the effect on the "compliant" restart.
 
