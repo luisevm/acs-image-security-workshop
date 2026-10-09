@@ -1,4 +1,4 @@
-= RHACS Image Security Workshop
+= Image Security with RHACS: From Inventory to Enforcement
 :page-layout: home
 :!sectids:
 include::_attributes.adoc[]
@@ -6,38 +6,38 @@ include::_attributes.adoc[]
 [.text-center.strong]
 == Know which images run on your cluster and stop the ones you do not want
 
-In this workshop you use Red Hat Advanced Cluster Security for Kubernetes (RHACS) on one OpenShift cluster. You start by listing the images that run and the fixable CVEs they carry. Then you write policies that alert on outdated or untrusted images and, once you trust them, block those images at admission. You move the policies into Git so that OpenShift GitOps keeps them in sync, and you finish with Red Hat Advanced Cluster Management (RHACM) keeping ACS and its admission enforcement in place.
+In this workshop you use Red Hat Advanced Cluster Security for Kubernetes (RHACS) on one OpenShift cluster. You start by finding out which images run, which version and Red Hat build each one is, and which of their CVEs have a fix. Then you write policies that alert on outdated or untrusted images and, once you trust them, block those images at admission. You move the policies into Git so that OpenShift GitOps keeps them in sync, and you finish with Red Hat Advanced Cluster Management (RHACM) keeping ACS and its admission enforcement in place.
 
 [.tiles.browse]
 == Browse modules
 
 [.tile]
 .xref:00-setup.adoc[Cluster Setup]
-* xref:00-setup.adoc#export-variables[Export variables]
+* xref:00-setup.adoc#export-variables[Create myenv.sh]
 * xref:00-setup.adoc#install-operators[Install the operators]
-* xref:00-setup.adoc#install-acs[Install ACS]
+* xref:00-setup.adoc#secure-cluster[Secure the cluster]
 
 [.tile]
-.xref:01-inventory-cve.adoc[Step 1: Inventory and CVE posture]
-* xref:01-inventory-cve.adoc#inventory[List what is running]
+.xref:01-inventory-cve.adoc[Step 1: Know Your Images]
+* xref:01-inventory-cve.adoc#tag-images[Application versions]
 * xref:01-inventory-cve.adoc#build-behind-tag[Build behind a tag]
-* xref:01-inventory-cve.adoc#explore-portal[Explore CVEs]
+* xref:01-inventory-cve.adoc#explore-portal[Fixable CVEs]
 * xref:01-inventory-cve.adoc#apply-policy[CVE policy]
 
 [.tile]
-.xref:02-image-compliance.adoc[Step 2: Image compliance]
+.xref:02-image-compliance.adoc[Step 2: Alert, Then Block]
 * xref:02-image-compliance.adoc#inform-alert[Alert]
 * xref:02-image-compliance.adoc#enforce[Enforce]
 * xref:02-image-compliance.adoc#break-glass[Break-glass]
 
 [.tile]
-.xref:03-policies-as-code.adoc[Step 3: Policies as code]
+.xref:03-policies-as-code.adoc[Step 3: Policies as Code]
 * xref:03-policies-as-code.adoc#create-app[Argo CD takes over]
 * xref:03-policies-as-code.adoc#git-change[Change in Git]
 * xref:03-policies-as-code.adoc#self-heal[Drift]
 
 [.tile]
-.xref:05-acs-acm.adoc[Step 5: ACS and ACM]
+.xref:05-acs-acm.adoc[Step 5: Keep Enforcement On]
 * xref:05-acs-acm.adoc#baseline-policy[Baseline policy]
 * xref:05-acs-acm.adoc#drift-enforcement[Drift]
 * xref:05-acs-acm.adoc#recreate[Recreate]

@@ -2,7 +2,7 @@
 
 ## Repository Purpose
 
-Antora courseware for an RHACS workshop on one OpenShift cluster: image inventory and CVE posture, image compliance policies (inform, then enforce), policies as code with OpenShift GitOps, and RHACM keeping ACS admission enforcement in place. Step 4 (signatures) is out of scope.
+Antora courseware "Image Security with RHACS: From Inventory to Enforcement" on one OpenShift cluster: Step 1 Know Your Images (versions, builds, and fixable CVEs), Step 2 Alert, Then Block (image compliance policies), Step 3 Policies as Code (Argo CD), Step 5 Keep Enforcement On (RHACM guards the ACS configuration). Step 4 (signatures) is out of scope.
 
 ## Structure
 
@@ -10,7 +10,7 @@ Antora courseware for an RHACS workshop on one OpenShift cluster: image inventor
 - `documentation/modules/ROOT/pages/` contains the course pages in `.adoc` format
 - YAML manifests live in the root step directories
 - `00-setup/` operators, Central, SecuredCluster, MultiClusterHub
-- `01-inventory-cve/` demo namespace, workloads, inform-only CVE policy
+- `01-inventory-cve/` demo namespace, application images with `x.y.z` tags (image streams and an in-cluster build), workloads, inform-only CVE policy
 - `02-image-compliance/` alert sink, notifier, `policies/` (inform), `enforce/` (enforce), `tests/` (test workloads)
 - `03-policies-as-code/` Argo CD RBAC, Application, `policies/` synced from Git
 - `05-acs-acm/` RHACM policy namespace, placement, ACS baseline policy
@@ -55,6 +55,7 @@ Antora courseware for an RHACS workshop on one OpenShift cluster: image inventor
 - Never include customer names, user names, or email addresses
 - All content must be in English
 - Prefer `registry.access.redhat.com` or `registry.redhat.io` images
+- Workshop application images use `x.y.z` version tags in the internal registry (tests that need `latest` on purpose are the exception)
 - Use Red Hat / OpenShift-native components when they cover the use case
 - Mention Red Hat products because they fit the solution, not to promote them
 

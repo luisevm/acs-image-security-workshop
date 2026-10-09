@@ -1,6 +1,6 @@
-= RHACS Image Security Workshop
+= Image Security with RHACS: From Inventory to Enforcement
 
-A hands-on workshop for Red Hat Advanced Cluster Security for Kubernetes (RHACS) on one OpenShift cluster. Participants list the images that run and their fixable CVEs, write policies that alert on and then block outdated or untrusted images, manage those policies from Git with OpenShift GitOps, and use Red Hat Advanced Cluster Management (RHACM) to keep ACS admission enforcement in place.
+A hands-on workshop for Red Hat Advanced Cluster Security for Kubernetes (RHACS) on one OpenShift cluster. Participants find out which images run, which version and Red Hat build each one is, and which CVEs have a fix, write policies that alert on and then block outdated or untrusted images, manage those policies from Git with OpenShift GitOps, and use Red Hat Advanced Cluster Management (RHACM) to keep ACS admission enforcement in place.
 
 == View the course
 

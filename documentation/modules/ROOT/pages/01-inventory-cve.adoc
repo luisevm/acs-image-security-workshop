@@ -1,4 +1,4 @@
-= Step 1 - Inventory and CVE Posture: What runs and what is fixable
+= Step 1 - Know Your Images: Versions, builds, and fixable CVEs
 include::_attributes.adoc[]
 
 Before you write rules about images, you need to know which images run, which version and build each one is, and which of their vulnerabilities have a fix. In this step you publish two versions of a small application in the cluster's internal registry: `legacy-app:1.0.0`, built on an old UBI 8.4 image, and `current-app:2.0.0`, built today on the current UBI 9 minimal image. You deploy both, trace each version tag back to the Red Hat build behind it, search the whole cluster by tag and image age, read the CVEs in the portal and with `roxctl`, and add a first policy that flags fixable CVEs of severity Important or higher. The policy only reports for now. Step 2 turns it into a block.
@@ -11,7 +11,7 @@ Before you write rules about images, you need to know which images run, which ve
 
 == How it works
 
-An image has three names. The tag (`1.0.0`) is a label that someone can move to a new build. The digest (`sha256:...`) is computed from the content and always names the same image. Red Hat images also carry `version` and `release` labels inside the image, which name the Red Hat build it was made from. OpenShift records the digest of every running container, and ACS stores every image by digest, together with its labels, creation date, and scan results.
+Three things identify an image. The tag (`1.0.0`) is a label that someone can move to a new build. The digest (`sha256:...`) is computed from the content and always names the same image. Red Hat images also carry `version` and `release` labels inside the image, which name the Red Hat build it was made from. OpenShift records the digest of every running container, and ACS stores every image by digest, together with its labels, creation date, and scan results.
 
 Sensor watches the workloads on the cluster and sends their image references to Central. Central has the images scanned, stores the result by digest, and evaluates every policy whose scope matches the workload. A violation appears when a workload matches all the criteria in one policy section. The policy you add in this step is a Kubernetes `SecurityPolicy` custom resource that the RHACS `config-controller` copies into Central.
 
@@ -28,7 +28,7 @@ icon:clock[] ~35 seconds (the in-cluster build of `current-app:2.0.0`)
 
 `01-inventory-cve/02-images.yaml` holds two `ImageStream` resources and one `BuildConfig`:
 
-* `legacy-app:1.0.0` points to one Red Hat UBI 8.4 build from October 2021, pinned by digest. OpenShift imports it into the internal registry.
+* `legacy-app:1.0.0` points to one Red Hat UBI 8.4 build from October 2021, pinned by digest. OpenShift imports the image metadata, and pods pull the image through the internal registry.
 * `current-app:2.0.0` is built in the cluster. The build starts from the current UBI 9 minimal image (`CURRENT_IMAGE`, a digest) and installs every package update that the base image does not include yet.
 
 The file uses `$\{CURRENT_IMAGE}`, so it goes through `envsubst`:
@@ -41,8 +41,14 @@ envsubst < 01-inventory-cve/02-images.yaml | oc --context {hub-context} apply -f
 oc --context {hub-context} start-build current-app -n acs-image-demo --wait
 ----
 
-TIP: `oc tag <source-image> <imagestream>:<tag>` creates the same kind of tag from the command line, for example:
-`oc --context {hub-context} tag --reference-policy=local registry.access.redhat.com/ubi8/ubi@sha256:53d3a0837cf04ba4c687ddb39b487dc86efdbc14bd528778a7fa522637b1a3a0 acs-image-demo/legacy-app:1.0.0`
+TIP: `oc tag` creates the same kind of tag from the command line. This command is the equivalent of the `legacy-app` part of the file:
+
+[source,bash,subs="+macros,+attributes"]
+----
+oc --context {hub-context} tag --reference-policy=local \
+  registry.access.redhat.com/ubi8/ubi@sha256:53d3a0837cf04ba4c687ddb39b487dc86efdbc14bd528778a7fa522637b1a3a0 \
+  acs-image-demo/legacy-app:1.0.0
+----
 
 .Verify: Both version tags exist
 [%collapsible]
@@ -191,12 +197,12 @@ curl -skG -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROU
     done
 ----
 
-In the ACS portal, go to *Vulnerability Management > Results*, select the *Image* view, filter by the namespace `acs-image-demo` as in sub-step 6, and open `acs-image-demo/legacy-app:1.0.0`. The header shows the tag, the digest, the operating system, and the age of the image. The *Resources* tab lists the deployments that run it.
+In the ACS portal, go to *Vulnerability Management > Results*. In the filter bar, select the entity *Namespace*, type `acs-image-demo`, and press kbd:[Enter]. Select the *Image* view above the table and open `acs-image-demo/legacy-app:1.0.0`. The header shows the tag, the digest, the operating system, and the age of the image. The *Resources* tab lists the deployments that run it.
 
 .Vulnerability Management > Results > image page - version 1.0.0 and the deployment that runs it
 image::01-image-details.png[ACS image page for acs-image-demo/legacy-app:1.0.0 with its digest, OS rhel:8, age 4 years, and the Resources tab listing the deployment legacy-app]
 
-The header says *No signature found*. Red Hat signs its images under their original name in `registry.access.redhat.com`, and the copy in the internal registry is a different name. Signature checks are not part of this session.
+The header says *No signature found*. Red Hat signs its images under their original name in `registry.access.redhat.com`, and the internal registry serves the image under a different name. Signature checks are not part of this session.
 
 .Verify: Each version maps to one Red Hat build
 [%collapsible]
@@ -241,7 +247,7 @@ for q in "Image Tag:latest" "Image Created Time:>365d"; do
 done
 ----
 
-The query syntax is the same as in the search bar of the portal: `<field>:<value>`, with `+` between several criteria. Other useful fields are `Image Tag`, `Image Registry`, `Image OS`, and `Namespace`.
+The query syntax is the same as in the search bar of the portal: `<field>:<value>`, with `+` between several criteria. Other fields that work the same way are `Image Registry` (for example `Image Registry:quay.io`), `Image OS` (`Image OS:rhel:8`), and `Namespace`. `Namespace:acs-image-demo+Image Tag:1.0.0` combines two of them and returns `legacy-app`.
 
 .Verify: legacy-app is one of the old images on the cluster
 [%collapsible]
@@ -433,6 +439,7 @@ icon:clock[] ~10 seconds (the check goes through the cluster)
 [.console-input]
 [source,bash,subs="+macros,+attributes"]
 ----
+REG=image-registry.openshift-image-registry.svc:5000/acs-image-demo
 roxctl --insecure-skip-tls-verify image check --cluster "${ACS_CLUSTER_NAME}" \
   --image "${REG}/legacy-app:1.0.0" --output json > /tmp/image-check.json
 echo "exit code: $?"
@@ -441,7 +448,7 @@ jq -r '.results[].violatedPolicies[] | [.name, .severity, .failingCheck] | @tsv'
 
 `roxctl image check` fails, with exit code `1`, when a violated policy has the "fail build" enforcement action (`failingCheck` is `true`). The workshop policy is listed with `false`, because it has no enforcement actions yet. You add them in Step 2.
 
-`REG` is the variable from sub-step 7. The exit code is already `1`, because the built-in policy *Fixable Severity at least Important* ships with the "fail build" action and version `1.0.0` violates it. A pipeline that runs `roxctl image check` against a default Central fails on this image before you change anything.
+The exit code is already `1`, because the built-in policy *Fixable Severity at least Important* ships with the "fail build" action and version `1.0.0` violates it. A pipeline that runs `roxctl image check` against a default Central fails on this image before you change anything.
 
 .Verify: The workshop policy is listed and does not fail the check
 [%collapsible]
@@ -449,6 +456,7 @@ jq -r '.results[].violatedPolicies[] | [.name, .severity, .failingCheck] | @tsv'
 [.console-output]
 [source,bash]
 ----
+ERROR:	checking image failed: failed policies found: 1 policies violated that are failing the check
 exit code: 1
 Fixable Severity at least Important	HIGH	true
 Workshop - Fixable CVEs of severity Important or higher	HIGH	false
@@ -486,10 +494,10 @@ Red Hat Package Manager in Image	LOW	false
 | Remaining problem | Addressed in
 
 | Nobody is notified when a violation appears
-| xref:02-image-compliance.adoc[Step 2: Image compliance]
+| xref:02-image-compliance.adoc[Step 2: Alert, Then Block]
 
 | Vulnerable, outdated, or untrusted images can still be deployed
-| xref:02-image-compliance.adoc[Step 2: Image compliance]
+| xref:02-image-compliance.adoc[Step 2: Alert, Then Block]
 |===
 
 == Official documentation

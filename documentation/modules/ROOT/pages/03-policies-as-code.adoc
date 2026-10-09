@@ -1,4 +1,4 @@
-= Step 3 - Policies as Code: Git as the source of truth
+= Step 3 - Policies as Code: Manage ACS policies with Argo CD
 include::_attributes.adoc[]
 
 At the end of Step 2 the four policies are custom resources that you applied by hand. Anyone with access to the `stackrox` namespace or the ACS portal can change them, and nothing records why. In this step OpenShift GitOps (Argo CD) takes over the policies from the `03-policies-as-code/policies/` folder of your fork. You change a policy with a Git commit, watch Argo CD undo a manual change on the cluster, see how the ACS portal treats a policy it does not own, and delete and restore a policy through Git.
@@ -156,7 +156,7 @@ oc --context {hub-context} annotate applications.argoproj.io acs-image-policies 
 
 The `sed` patterns only match the original values, so running the command twice does not change the file again. Argo CD also polls Git on its own. The `refresh` annotation only saves you the wait.
 
-The legacy image is older than 365 days and younger than 3650 days, so its age violation resolves.
+Version `1.0.0` of `legacy-app` is older than 365 days and younger than 3650 days, so its age violation resolves.
 
 .Verify: The new value reached the cluster and Central
 [%collapsible]
@@ -259,7 +259,6 @@ The next resync happens when the custom resource changes, not on a timer you can
 [#git-delete]
 === 7. Delete and restore a policy through Git
 
-
 *What:* Remove the registry policy file in Git, check that the policy disappears from the cluster and from Central, then revert the commit.
 
 *Why:* Deleting a rule is also a reviewed change, and `git revert` brings it back exactly as it was.
@@ -286,7 +285,20 @@ curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUT
 
 Both the custom resource and the Central policy are normally gone about 10 seconds after the push, and the restore below takes about as long.
 
-WARNING: In two of three validation runs (RHACS 4.11.4), the policy disappeared from Central within seconds, but the custom resource stayed in the cluster with a deletion timestamp. `config-controller` deleted the policy in Central, failed to remove its finalizer because of an update conflict, and then kept failing with `policy "" is not externally managed and can be deleted only from central`. A plain `oc delete` of a test policy did not hit this. If `oc get securitypolicy workshop-trusted-registries -n stackrox` still returns the resource after a minute while the policy is gone from Central, remove the finalizer by hand: `oc --context {hub-context} patch securitypolicy workshop-trusted-registries -n stackrox --type=json -p '[{"op":"remove","path":"/metadata/finalizers"}]'`. Otherwise Argo CD cannot create the resource again in the next command.
+WARNING: In two of three validation runs (RHACS 4.11.4), the policy disappeared from Central within seconds, but the custom resource stayed in the cluster with a deletion timestamp. `config-controller` deleted the policy in Central, failed to remove its finalizer because of an update conflict, and then kept failing with `policy "" is not externally managed and can be deleted only from central`. A plain `oc delete` of a test policy did not hit this. Check for it before you restore the policy.
+
+If the first command below prints a timestamp a minute after the push, the resource is stuck. The policy is already gone from Central, so you can remove the finalizer by hand. Otherwise Argo CD cannot create the resource again in the next command.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc --context {hub-context} get securitypolicy workshop-trusted-registries -n stackrox \
+  -o jsonpath='{.metadata.deletionTimestamp}{"\n"}'
+oc --context {hub-context} patch securitypolicy workshop-trusted-registries -n stackrox \
+  --type=json -p '[{"op":"remove","path":"/metadata/finalizers"}]'
+----
+
+Run the `patch` command only when the `get` command printed a timestamp. When the resource is already gone, `get` returns `NotFound` and there is nothing to fix.
 
 Restore it:
 
@@ -338,7 +350,7 @@ True
 | Remaining problem | Addressed in
 
 | Admission enforcement can be turned off on the cluster, or the secured cluster services removed, and the policies stop blocking anything
-| xref:05-acs-acm.adoc[Step 5: ACS and ACM]
+| xref:05-acs-acm.adoc[Step 5: Keep Enforcement On]
 |===
 
 == Official documentation

@@ -1,4 +1,4 @@
-= Step 5 - ACS and ACM: Keep image enforcement on
+= Step 5 - Keep Enforcement On: RHACM guards the ACS configuration
 include::_attributes.adoc[]
 
 The policies from Steps 1 to 3 only block images while the ACS secured cluster services run with admission enforcement turned on. One manual edit of the `SecuredCluster` resource, or its deletion, and the cluster accepts any image again. In this step an RHACM governance policy makes the secured cluster configuration a requirement: RHACM checks it continuously and puts it back when it changes. The cluster is both the RHACM hub and the managed cluster `local-cluster`, so you can test this with one cluster.
@@ -88,7 +88,7 @@ local-cluster
 
 *Why:* From now on RHACM reports the cluster as non-compliant the moment the setting changes, and fixes it.
 
-The policy uses `$\{ACS_CLUSTER_NAME}` so that the cluster keeps the name it has in ACS, so it goes through `envsubst`:
+The policy contains `$\{ACS_CLUSTER_NAME}`, so that the cluster keeps the name it has in ACS. Apply it through `envsubst`:
 
 [.console-input]
 [source,bash,subs="+macros,+attributes"]
@@ -173,13 +173,12 @@ oc --context {hub-context} get policy acs-policies.acs-image-enforcement-baselin
 2026-10-08T19:18:33Z  Compliant; notification - securedclusters [stackrox-secured-cluster-services] found as specified in namespace stackrox
 ----
 
-The newest entry is at the top. RHACM found the drift and fixed it in the same second.
+The newest entry is at the top. RHACM found the drift and fixed it in the same second. RHACM copies the policy into the namespace of each managed cluster with the name `<namespace>.<policy>`, here `acs-policies.acs-image-enforcement-baseline` in `local-cluster`.
 
 The console shows the same history. In *Fleet management > Governance > Policies*, open `acs-image-enforcement-baseline`, select the *Results* tab, and click *View history* in the `local-cluster` row.
 
 .Governance > acs-image-enforcement-baseline > View history - the drift and its correction
 image::05-acm-policy-history.png[History of the configuration policy acs-secured-cluster-admission on local-cluster, with one Violations entry between three No violations entries]
- RHACM copies the policy into the namespace of each managed cluster with the name `<namespace>.<policy>`, here `acs-policies.acs-image-enforcement-baseline` in `local-cluster`.
 ====
 
 '''
@@ -211,7 +210,7 @@ oc --context {hub-context} rollout status deploy/sensor -n stackrox --timeout=60
 oc --context {hub-context} rollout status deploy/admission-control -n stackrox --timeout=600s
 ----
 
-WARNING: While the services are gone, nothing enforces the image policies on this cluster. RHACM shortens that window, and the window lasts until the admission controller is ready again.
+WARNING: While the services are gone, nothing enforces the image policies on this cluster. RHACM recreates the resource within seconds, but the window lasts until the admission controller is ready again, about one minute on the validation cluster.
 
 The init bundle secrets (`sensor-tls`, `collector-tls`, and `admission-control-tls`) have no owner, so deleting the `SecuredCluster` leaves them in place. Sensor reconnected with them under the same cluster name and the same cluster ID in ACS.
 

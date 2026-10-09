@@ -398,7 +398,7 @@ source myenv.sh
 
 Central serves `roxctl-linux-amd64`, `roxctl-linux-arm64`, `roxctl-darwin-amd64`, and `roxctl-darwin-arm64`. There is no plain `roxctl-darwin` file.
 
-NOTE: The workshop uses `--insecure-skip-tls-verify` with `roxctl` and `-k` with `curl` because Central uses a self-signed certificate. In production, configure the clients to trust the Central CA instead.
+NOTE: The workshop uses `--insecure-skip-tls-verify` with `roxctl` and `-k` with `curl` because a newly installed Central uses a self-signed certificate. In production, configure the clients to trust the Central CA instead.
 
 .Verify: `roxctl` reaches Central with the token
 [%collapsible]
@@ -463,7 +463,7 @@ oc --context {hub-context} rollout status deploy/admission-control -n stackrox -
 
 The manifest sets three admission controller options:
 
-* `enforcement: Enabled` turns on hard enforcement through the validating webhook. The `listenOn*` fields used by older guides are deprecated since RHACS 4.9.
+* `enforcement: Enabled` turns on hard enforcement through the validating webhook. It is the default for new installations since RHACS 4.9, and the `listenOn*` fields used by older guides are deprecated.
 * `contactImageScanners: ScanIfMissing` lets the admission controller scan an image it has not seen before. Without it, decisions about CVEs and image age only use scan results that Central already has.
 * `bypass: BreakGlassAnnotation` allows the `admission.stackrox.io/break-glass` annotation used in xref:02-image-compliance.adoc#break-glass[Step 2]. Every bypass is recorded as a violation.
 
@@ -626,15 +626,22 @@ Roles:
 
 == Reset
 
-The workshop resets never remove this setup. Use these commands only to remove everything from the cluster. They run in reverse order: the hub and the secured cluster go first because they depend on their operators, and Central goes after the secured cluster that reports to it.
+The workshop resets never remove this setup. Use these commands only to remove everything from the cluster. The `delete_operator` function deletes only the CSV that each subscription installed. A namespace also lists copies of the CSVs of operators installed for all namespaces, and `oc delete csv --all` would remove those copies as well. They run in reverse order: the hub and the secured cluster go first because they depend on their operators, and Central goes after the secured cluster that reports to it.
 
 [.console-input]
 [source,bash]
 ----
+# Deletes one operator: its subscription, then only the CSV that the subscription installed
+delete_operator() {
+  csv=$(oc --context hub get subscriptions.operators.coreos.com "$2" -n "$1" \
+    -o jsonpath='{.status.installedCSV}' 2>/dev/null)
+  oc --context hub delete subscriptions.operators.coreos.com "$2" -n "$1" --ignore-not-found
+  if [ -n "$csv" ]; then oc --context hub delete csv "$csv" -n "$1" --ignore-not-found; fi
+}
+
 # 1. RHACM hub, then the RHACM operator
 oc --context hub delete multiclusterhub multiclusterhub -n open-cluster-management --ignore-not-found --wait
-oc --context hub delete subscription advanced-cluster-management -n open-cluster-management --ignore-not-found
-oc --context hub delete csv -n open-cluster-management --all --ignore-not-found
+delete_operator open-cluster-management advanced-cluster-management
 oc --context hub delete namespace open-cluster-management --ignore-not-found
 
 # 2. Secured cluster services, init bundle secrets, then Central
@@ -644,11 +651,9 @@ oc --context hub delete central stackrox-central-services -n stackrox --ignore-n
 oc --context hub delete namespace stackrox --ignore-not-found
 
 # 3. Operators
-oc --context hub delete subscription openshift-gitops-operator -n openshift-gitops-operator --ignore-not-found
-oc --context hub delete csv -n openshift-gitops-operator --all --ignore-not-found
+delete_operator openshift-gitops-operator openshift-gitops-operator
 oc --context hub delete namespace openshift-gitops openshift-gitops-operator --ignore-not-found
-oc --context hub delete subscription rhacs-operator -n rhacs-operator --ignore-not-found
-oc --context hub delete csv -n rhacs-operator --all --ignore-not-found
+delete_operator rhacs-operator rhacs-operator
 oc --context hub delete namespace rhacs-operator --ignore-not-found
 
 # 4. Local files

@@ -1,4 +1,4 @@
-= Step 2 - Image Compliance: Alert first, then block
+= Step 2 - Alert, Then Block: Image compliance policies
 include::_attributes.adoc[]
 
 Step 1 left you with a policy that reports. In this step you add three image rules: no `latest` tag, only approved registries, and no image older than 365 days. All four policies send their violations to a webhook receiver running in the cluster. You run them in inform mode first, so you can see what they would catch, then switch them to enforce and watch the admission controller reject new deployments, updates, and scaling of workloads that break them. You finish with the break-glass annotation, which lets an emergency deployment through and records that it happened.
@@ -177,6 +177,8 @@ The output lists *Workshop - Image uses the latest tag*. The policies are still 
 [source,bash]
 ----
 exit code: 0
+Fixable Severity at least Important	HIGH	false
+Workshop - Fixable CVEs of severity Important or higher	HIGH	false
 Container with privilege escalation allowed	MEDIUM	false
 Pod Service Account Token Automatically Mounted	MEDIUM	false
 Workshop - Image uses the latest tag	MEDIUM	false
@@ -187,7 +189,7 @@ Red Hat Package Manager in Image	LOW	false
 
 `roxctl` also prints a `WARN` line about deployments without a namespace. The test manifest sets `namespace: acs-image-demo`, so you can ignore it.
 
-In the second validation run, a few hours later, the list also had *Fixable Severity at least Important* and *Workshop - Fixable CVEs of severity Important or higher*. Red Hat had published a fix for an `openssl-libs` CVE in the meantime, and the UBI 9 minimal image behind `latest` did not include it yet. CVE results change with the published data, so your list can differ.
+The two fixable-CVE policies match because the plain Red Hat image `ubi9/ubi-minimal:latest` missed a published fix for `openssl-libs` on the validation date. On a day when the Red Hat image includes every fix, those two lines are not there.
 ====
 
 '''
@@ -440,7 +442,7 @@ jq -r '.results[].violatedPolicies[] | [.name, .severity, .failingCheck] | @tsv'
 .Verify: The workshop policies now fail the check
 [%collapsible]
 ====
-In Step 1 only the built-in policy had `failingCheck` set to `true`. Now the two workshop policies that the legacy image violates have it as well:
+In Step 1 only the built-in policy had `failingCheck` set to `true`. Now the two workshop policies that version `1.0.0` violates have it as well:
 
 [.console-output]
 [source,bash]
@@ -535,10 +537,10 @@ oc --context {hub-context} delete -f 02-image-compliance/tests/breakglass-latest
 | Remaining problem | Addressed in
 
 | The policies are applied by hand with `oc apply`, with no review and no record of who changed what
-| xref:03-policies-as-code.adoc[Step 3: Policies as code]
+| xref:03-policies-as-code.adoc[Step 3: Policies as Code]
 
 | Someone can edit or delete a policy and nothing puts it back
-| xref:03-policies-as-code.adoc[Step 3: Policies as code]
+| xref:03-policies-as-code.adoc[Step 3: Policies as Code]
 |===
 
 == Official documentation
