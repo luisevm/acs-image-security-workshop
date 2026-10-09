@@ -20,6 +20,7 @@ In this workshop you use Red Hat Advanced Cluster Security for Kubernetes (RHACS
 [.tile]
 .xref:01-inventory-cve.adoc[Step 1: Inventory and CVE posture]
 * xref:01-inventory-cve.adoc#inventory[List what is running]
+* xref:01-inventory-cve.adoc#build-behind-tag[Build behind a tag]
 * xref:01-inventory-cve.adoc#explore-portal[Explore CVEs]
 * xref:01-inventory-cve.adoc#apply-policy[CVE policy]
 

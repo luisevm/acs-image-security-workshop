@@ -40,7 +40,7 @@ The generated site is output to `gh-pages/`.
 | Operator subscriptions (RHACS, OpenShift GitOps, RHACM), Central, SecuredCluster, and MultiClusterHub
 
 | `01-inventory-cve/`
-| Step 1 - demo namespace, a legacy and a current workload, and the inform-only CVE policy
+| Step 1 - demo namespace, the application images `legacy-app:1.0.0` and `current-app:2.0.0` (image streams and an in-cluster build), the two workloads, and the inform-only CVE policy
 
 | `02-image-compliance/`
 | Step 2 - alert receiver and notifier, policies in inform (`policies/`) and enforce (`enforce/`) mode, and test workloads (`tests/`)

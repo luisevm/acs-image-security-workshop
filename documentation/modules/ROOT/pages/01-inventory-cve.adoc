@@ -24,7 +24,7 @@ icon:clock[] ~35 seconds (the in-cluster build of `current-app:2.0.0`)
 
 *What:* Create the `acs-image-demo` namespace and the two image tags `legacy-app:1.0.0` and `current-app:2.0.0` in the internal registry.
 
-*Why:* Applications are deployed by their own version, not by the name of a base image, so the rest of the workshop works with version tags in the `x.y.z` format.
+*Why:* Teams deploy and talk about applications by their version number, so the rest of the workshop works with version tags in the `x.y.z` format.
 
 `01-inventory-cve/02-images.yaml` holds two `ImageStream` resources and one `BuildConfig`:
 

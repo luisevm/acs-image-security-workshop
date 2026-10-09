@@ -173,7 +173,13 @@ oc --context {hub-context} get policy acs-policies.acs-image-enforcement-baselin
 2026-10-08T19:18:33Z  Compliant; notification - securedclusters [stackrox-secured-cluster-services] found as specified in namespace stackrox
 ----
 
-The newest entry is at the top. RHACM found the drift and fixed it in the same second. RHACM copies the policy into the namespace of each managed cluster with the name `<namespace>.<policy>`, here `acs-policies.acs-image-enforcement-baseline` in `local-cluster`.
+The newest entry is at the top. RHACM found the drift and fixed it in the same second.
+
+The console shows the same history. In *Fleet management > Governance > Policies*, open `acs-image-enforcement-baseline`, select the *Results* tab, and click *View history* in the `local-cluster` row.
+
+.Governance > acs-image-enforcement-baseline > View history - the drift and its correction
+image::05-acm-policy-history.png[History of the configuration policy acs-secured-cluster-admission on local-cluster, with one Violations entry between three No violations entries]
+ RHACM copies the policy into the namespace of each managed cluster with the name `<namespace>.<policy>`, here `acs-policies.acs-image-enforcement-baseline` in `local-cluster`.
 ====
 
 '''
