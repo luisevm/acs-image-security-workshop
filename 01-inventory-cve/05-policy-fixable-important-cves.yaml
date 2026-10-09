@@ -1,4 +1,4 @@
-# 04-policy-fixable-important-cves.yaml
+# 05-policy-fixable-important-cves.yaml
 # Purpose: Inform-only policy. Flags images in acs-image-demo that have a CVE of
 # severity Important or Critical with a fix available.
 # Applied on the cluster where Central runs (namespace stackrox).

@@ -1,6 +1,7 @@
-# 02-legacy-app.yaml
-# Purpose: Workload built on an old UBI 8.4 image. It carries years of unpatched,
-# fixable CVEs and acts as the "bad" example throughout the workshop.
+# 03-legacy-app.yaml
+# Purpose: Version 1.0.0 of the legacy application, built on an old UBI 8.4 image.
+# It carries years of unpatched, fixable CVEs and acts as the "bad" example
+# throughout the workshop. The image tag comes from 02-imagestreams.yaml.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -22,7 +23,9 @@ spec:
     spec:
       containers:
         - name: app
-          image: registry.access.redhat.com/ubi8/ubi:8.4
+          image: image-registry.openshift-image-registry.svc:5000/acs-image-demo/legacy-app:1.0.0
+          # Version tags can be moved to a new build; always check the registry
+          imagePullPolicy: Always
           command: ["/bin/sh", "-c", "sleep infinity"]
           resources:
             requests:

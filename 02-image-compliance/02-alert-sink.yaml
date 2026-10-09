@@ -1,13 +1,7 @@
-# 01-alert-sink.yaml
+# 02-alert-sink.yaml
 # Purpose: Small in-cluster webhook receiver that prints every ACS alert it gets.
 # It stands in for Slack, a SIEM, or a ticketing system during the workshop.
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: acs-alert-sink
-  labels:
-    app.kubernetes.io/part-of: acs-image-workshop
----
+# The namespace and the alert-sink:1.0.0 image tag come from 01-alert-sink-image.yaml.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -67,7 +61,9 @@ spec:
     spec:
       containers:
         - name: sink
-          image: registry.access.redhat.com/ubi9/python-311
+          image: image-registry.openshift-image-registry.svc:5000/acs-alert-sink/alert-sink:1.0.0
+          # Version tags can be moved to a new build; always check the registry
+          imagePullPolicy: Always
           command: ["python3", "/app/sink.py"]
           ports:
             - containerPort: 8080

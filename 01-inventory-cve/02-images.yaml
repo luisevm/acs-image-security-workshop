@@ -1,0 +1,62 @@
+# 02-images.yaml
+# Purpose: Give the two demo applications their own version tags in the cluster's
+# internal registry:
+#   legacy-app:1.0.0  -> Red Hat UBI 8.4, build 8.4-213 (October 2021), pinned by digest
+#   current-app:2.0.0 -> built in the cluster from the current UBI 9 minimal image
+#                        (CURRENT_IMAGE from myenv.sh) with all package updates applied
+# Apply with envsubst: CURRENT_IMAGE is the digest reference resolved in myenv.sh.
+# referencePolicy Local makes workloads pull through the internal registry.
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: legacy-app
+  namespace: acs-image-demo
+  labels:
+    app.kubernetes.io/part-of: acs-image-workshop
+spec:
+  tags:
+    - name: 1.0.0
+      from:
+        kind: DockerImage
+        name: registry.access.redhat.com/ubi8/ubi@sha256:53d3a0837cf04ba4c687ddb39b487dc86efdbc14bd528778a7fa522637b1a3a0
+      referencePolicy:
+        type: Local
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: current-app
+  namespace: acs-image-demo
+  labels:
+    app.kubernetes.io/part-of: acs-image-workshop
+---
+# The build applies the package updates that the base image does not include yet,
+# so version 2.0.0 has no fixable CVEs on the day you build it.
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: current-app
+  namespace: acs-image-demo
+  labels:
+    app.kubernetes.io/part-of: acs-image-workshop
+spec:
+  source:
+    dockerfile: |
+      FROM registry.access.redhat.com/ubi9/ubi-minimal
+      RUN microdnf -y update && microdnf clean all
+  strategy:
+    dockerStrategy:
+      from:
+        kind: DockerImage
+        name: ${CURRENT_IMAGE}
+  output:
+    to:
+      kind: ImageStreamTag
+      name: current-app:2.0.0
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi

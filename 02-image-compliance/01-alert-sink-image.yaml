@@ -1,0 +1,28 @@
+# 01-alert-sink-image.yaml
+# Purpose: Namespace for the webhook receiver and its image tag alert-sink:1.0.0 in
+# the internal registry. The tag points to one build of the Red Hat Python 3.11
+# image (version 1, release 1779945715), pinned by digest.
+# Applied before 02-alert-sink.yaml so the namespace has its pull secret in place
+# when the receiver pod starts.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: acs-alert-sink
+  labels:
+    app.kubernetes.io/part-of: acs-image-workshop
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: alert-sink
+  namespace: acs-alert-sink
+  labels:
+    app.kubernetes.io/part-of: acs-image-workshop
+spec:
+  tags:
+    - name: 1.0.0
+      from:
+        kind: DockerImage
+        name: registry.access.redhat.com/ubi9/python-311@sha256:7b6cb58d3ff034df7b300800bd89a469d9bd2f739d43250d76b9c9e805307ab5
+      referencePolicy:
+        type: Local

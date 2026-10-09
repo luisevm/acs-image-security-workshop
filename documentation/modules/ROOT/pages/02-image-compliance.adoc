@@ -21,7 +21,7 @@ Run `oc --context {hub-context} explain securitypolicy.spec.enforcementActions` 
 [#alert-sink]
 === 1. Set up an alert receiver
 
-icon:clock[] ~30 seconds the first time on a cluster (the pull of the Python image), about 5 seconds when the image is cached
+icon:clock[] ~20-30 seconds (image import and pull of the Python image, then the receiver start)
 
 *What:* Deploy a small webhook receiver in `acs-alert-sink` and register it in ACS as a generic webhook notifier named `workshop-alert-sink`.
 
@@ -30,17 +30,22 @@ icon:clock[] ~30 seconds the first time on a cluster (the pull of the Python ima
 [.console-input]
 [source,bash,subs="+macros,+attributes"]
 ----
-oc --context {hub-context} apply -f 02-image-compliance/01-alert-sink.yaml
+oc --context {hub-context} apply -f 02-image-compliance/01-alert-sink-image.yaml
+until oc --context {hub-context} get sa default -n acs-alert-sink \
+    -o jsonpath='{.imagePullSecrets[0].name}' 2>/dev/null | grep -q .; do sleep 2; done
+oc --context {hub-context} apply -f 02-image-compliance/02-alert-sink.yaml
 oc --context {hub-context} wait deploy/alert-sink -n acs-alert-sink \
   --for=condition=Available --timeout=300s
 ----
+
+The first file creates the namespace and the image tag `alert-sink:1.0.0`, which points to one build of the Red Hat Python 3.11 image. The `until` loop waits for OpenShift to give the namespace's service account its pull secret for the internal registry. A pod created before that secret exists cannot pull from the internal registry and stays in `ImagePullBackOff`.
 
 The notifier definition contains `$\{ACS_CENTRAL_ROUTE}`, so it goes through `envsubst` before it is sent to the API:
 
 [.console-input]
 [source,bash,subs="+macros,+attributes"]
 ----
-envsubst < 02-image-compliance/02-notifier.json \
+envsubst < 02-image-compliance/03-notifier.json \
   | curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" -H "Content-Type: application/json" \
     -X POST "https://${ACS_CENTRAL_ROUTE}/v1/notifiers" -d @- | jq '{id, name, type}'
 ----
@@ -68,7 +73,7 @@ Send a test message through the notifier and read it in the receiver's log:
 ----
 NOTIFIER_ID=$(curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/notifiers" \
   | jq -r '.notifiers[] | select(.name=="workshop-alert-sink") | .id')
-envsubst < 02-image-compliance/02-notifier.json | jq --arg id "${NOTIFIER_ID}" '. + {id: $id}' \
+envsubst < 02-image-compliance/03-notifier.json | jq --arg id "${NOTIFIER_ID}" '. + {id: $id}' \
   | curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" -H "Content-Type: application/json" \
     -X POST "https://${ACS_CENTRAL_ROUTE}/v1/notifiers/test" -d @-
 oc --context {hub-context} logs deploy/alert-sink -n acs-alert-sink --tail=1
@@ -118,7 +123,7 @@ oc --context {hub-context} apply -f 02-image-compliance/policies/
 | `legacy-app`
 |===
 
-The `Image Age` value is a number of days. The UBI 8.4 image was built in October 2021. The current UBI 9 minimal image was two days old on the validation date, so only `legacy-app` matches.
+The `Image Age` value is a number of days. Version `1.0.0` was built in October 2021 and version `2.0.0` in Step 1, so only `legacy-app` matches.
 
 .Verify: Central accepted all four policies
 [%collapsible]
@@ -190,7 +195,7 @@ In the second validation run, a few hours later, the list also had *Fixable Seve
 [#inform-alert]
 === 4. Deploy a workload and get alerted
 
-icon:clock[] ~15 seconds (deployment available after 9s, alert in the receiver's log after 14s)
+icon:clock[] ~15-35 seconds (deployment available after 4-9s, alert in the receiver's log after 14-33s)
 
 *What:* Deploy the `latest`-tag workload and read the alert in the receiver's log.
 
@@ -215,7 +220,7 @@ oc --context {hub-context} logs deploy/alert-sink -n acs-alert-sink --tail=20
 .Verify: The workload runs and the alert arrived
 [%collapsible]
 ====
-The log has one `ALERT` line per new violation of a workshop policy: the test message from sub-step 1, the image-age violation of `legacy-app` raised in sub-step 2, and the latest-tag violation of `bad-latest`.
+The log has one `ALERT` line per new violation of a workshop policy: the test message from sub-step 1, the image-age violation of `legacy-app` raised in sub-step 2, and the violations of `bad-latest`.
 
 [.console-output]
 [source,bash]
@@ -223,7 +228,10 @@ The log has one `ALERT` line per new violation of a workshop policy: the test me
 ALERT policy='This is a test message created to test integration with StackRox.' deployment=None namespace=None stage='DEPLOY'
 ALERT policy='Workshop - Image older than 365 days' deployment='legacy-app' namespace='acs-image-demo' stage='DEPLOY'
 ALERT policy='Workshop - Image uses the latest tag' deployment='bad-latest' namespace='acs-image-demo' stage='DEPLOY'
+ALERT policy='Workshop - Fixable CVEs of severity Important or higher' deployment='bad-latest' namespace='acs-image-demo' stage='DEPLOY'
 ----
+
+`bad-latest` runs the plain Red Hat image `ubi9/ubi-minimal:latest`, without the package updates that the Step 1 build added to `current-app:2.0.0`. On the validation date that image missed a fix for `openssl-libs`, so it also matched the CVE policy. Your log may or may not have this last line, depending on the CVE data of the day.
 
 The CVE violation of `legacy-app` is not in the log. It already existed in Step 1, and ACS notifies when a violation is raised, not when a notifier is added to its policy later.
 ====
@@ -317,7 +325,7 @@ The `bad-latest` rejection has the same shape, with the policy *Workshop - Image
 
 NOTE: The registry and tag checks only read the image reference, so they run before any image pull or scan, and Docker Hub pull limits do not matter here. The two policies that need scan data (CVEs and image age) wait until those violations are fixed, as the last lines of the message say.
 
-Each rejected request is also recorded as a violation with the state *Attempted* (the *Attempted* tab on the *Violations* page) and sent to the notifier.
+Each rejected request is also recorded as a violation with the state *Attempted* and sent to the notifier. Sub-step 7 shows them in the portal.
 
 .Verify: Neither workload exists
 [%collapsible]
@@ -382,7 +390,12 @@ Policy: Workshop - Fixable CVEs of severity Important or higher
 ...
 ----
 
-NOTE: The restart of `current-app` is compliant only while its UBI 9 minimal image has no fixable Important or Critical CVE. When Red Hat publishes a fix that the image does not include yet, the CVE policy rejects the restart as well, until a rebuilt image is out and you redeploy with a new `CURRENT_IMAGE`. On the validation date, a fix for an `openssl-libs` CVE appeared between the two runs. The restart still went through because Central had not rescanned the image yet.
+NOTE: The restart of `current-app` is compliant because the Step 1 build installed every package update that existed that day. When Red Hat publishes a fix for one of its packages later, the CVE policy rejects the restart as well. Run `oc --context {hub-context} start-build current-app -n acs-image-demo --wait` to rebuild version `2.0.0` with the fix, then restart.
+
+Every rejected request is on record. In the portal, go to *Violations*, open the *Attempted* tab, and filter by the namespace `acs-image-demo` and the policy name `Workshop`. The *Enforced* column shows whether the admission controller blocked a create or an update.
+
+.Violations > Attempted - the requests that the admission controller blocked
+image::02-attempted-violations.png[Attempted violations in acs-image-demo with the Enforced column showing Blocked Deployment Update for legacy-app and current-app and Blocked Deployment Create for bad-registry]
 
 .Verify: Only the compliant restart went through
 [%collapsible]
@@ -398,8 +411,8 @@ oc --context {hub-context} get deploy -n acs-image-demo \
 [source,bash]
 ----
 NAME          REPLICAS   IMAGE
-current-app   1          registry.access.redhat.com/ubi9/ubi-minimal@sha256:68b92732accbffdd8e2491b4c29976634ed92459f5779dac2aad670c967337c7
-legacy-app    1          registry.access.redhat.com/ubi8/ubi:8.4
+current-app   1          image-registry.openshift-image-registry.svc:5000/acs-image-demo/current-app:2.0.0
+legacy-app    1          image-registry.openshift-image-registry.svc:5000/acs-image-demo/legacy-app:1.0.0
 ----
 ====
 
@@ -408,6 +421,8 @@ legacy-app    1          registry.access.redhat.com/ubi8/ubi:8.4
 [#ci-gate]
 === 8. Fail the build-time check
 
+icon:clock[] ~10 seconds (the check goes through the cluster)
+
 *What:* Run the Step 1 `roxctl image check` again.
 
 *Why:* With `FAIL_BUILD_ENFORCEMENT` set, the same rule now stops a pipeline, so a non-compliant image fails before anyone tries to deploy it.
@@ -415,8 +430,9 @@ legacy-app    1          registry.access.redhat.com/ubi8/ubi:8.4
 [.console-input]
 [source,bash,subs="+macros,+attributes"]
 ----
-roxctl --insecure-skip-tls-verify image check --image registry.access.redhat.com/ubi8/ubi:8.4 \
-  --output json > /tmp/image-check.json
+REG=image-registry.openshift-image-registry.svc:5000/acs-image-demo
+roxctl --insecure-skip-tls-verify image check --cluster "${ACS_CLUSTER_NAME}" \
+  --image "${REG}/legacy-app:1.0.0" --output json > /tmp/image-check.json
 echo "exit code: $?"
 jq -r '.results[].violatedPolicies[] | [.name, .severity, .failingCheck] | @tsv' /tmp/image-check.json
 ----
@@ -564,10 +580,10 @@ oc --context hub delete securitypolicy workshop-latest-tag workshop-trusted-regi
   -n stackrox --ignore-not-found
 
 # 3. CVE policy back to the Step 1 version (inform only, no notifier)
-oc --context hub apply -f 01-inventory-cve/04-policy-fixable-important-cves.yaml
+oc --context hub apply -f 01-inventory-cve/05-policy-fixable-important-cves.yaml
 
 # 4. Workloads back to their Step 1 state
-envsubst < 01-inventory-cve/03-current-app.yaml | oc --context hub apply -f -
+oc --context hub apply -f 01-inventory-cve/04-current-app.yaml
 oc --context hub scale deploy/legacy-app -n acs-image-demo --replicas=1
 oc --context hub wait deploy --all -n acs-image-demo --for=condition=Available --timeout=300s
 
@@ -578,7 +594,8 @@ NOTIFIER_ID=$(curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${AC
 [ -n "${NOTIFIER_ID}" ] && until [ "$(curl -sk -o /dev/null -w '%{http_code}' \
   -H "Authorization: Bearer ${ROX_API_TOKEN}" -X DELETE \
   "https://${ACS_CENTRAL_ROUTE}/v1/notifiers/${NOTIFIER_ID}")" = 200 ]; do sleep 2; done
-oc --context hub delete -f 02-image-compliance/01-alert-sink.yaml --ignore-not-found --wait
+oc --context hub delete -f 02-image-compliance/02-alert-sink.yaml --ignore-not-found --wait
+oc --context hub delete -f 02-image-compliance/01-alert-sink-image.yaml --ignore-not-found --wait
 ----
 
 `oc apply` of the Step 1 file removes the `notifiers` field from the CVE policy, because `oc apply` deletes fields that were in the last applied version and are missing from the new file. After that, nothing in Central refers to the notifier and the delete succeeds.

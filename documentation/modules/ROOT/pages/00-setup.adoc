@@ -136,8 +136,8 @@ The ACS variables stay empty until Central exists. Source the file again after e
 | Your fork and the branch Argo CD follows
 
 | `CURRENT_IMAGE`
-| `01-inventory-cve/03-current-app.yaml`
-| Current UBI 9 minimal image, referenced by digest
+| `01-inventory-cve/02-images.yaml`
+| Current UBI 9 minimal image, referenced by digest. Step 1 builds `current-app:2.0.0` from it
 
 | `ACS_CHANNEL`, `GITOPS_CHANNEL`, `ACM_CHANNEL`
 | `00-setup/01-acs-operator.yaml`, `05-gitops-operator.yaml`, `06-acm-operator.yaml`
