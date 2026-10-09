@@ -86,10 +86,19 @@
     <a class="nav-link" href="01-inventory-cve.html">Step 1: Inventory and CVE Posture</a>
 <ul class="nav-list">
   <li class="nav-item" data-depth="2">
-    <a class="nav-link" href="#deploy-workloads">Deploy Two Workloads</a>
+    <a class="nav-link" href="#tag-images">Publish Two Application Versions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#deploy-workloads">Deploy the Two Versions</a>
   </li>
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="#inventory">List What Is Running</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#build-behind-tag">Find the Build Behind a Tag</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#search-cluster">Search Images Across the Cluster</a>
   </li>
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="#explore-portal">Explore CVEs in the Portal</a>
@@ -215,7 +224,7 @@
 <div id="preamble">
 <div class="sectionbody">
 <div class="paragraph">
-<p>Before you write rules about images, you need to know which images run and which of their vulnerabilities have a fix. In this step you deploy two small workloads: one built on an old UBI 8.4 image and one on the current UBI 9 minimal image, pinned by digest. You list them from OpenShift and from ACS, read their CVEs in the portal and with <code>roxctl</code>, and add a first policy that flags fixable CVEs of severity Important or higher. The policy only reports for now. Step 2 turns it into a block.</p>
+<p>Before you write rules about images, you need to know which images run, which version and build each one is, and which of their vulnerabilities have a fix. In this step you publish two versions of a small application in the cluster&#8217;s internal registry: <code>legacy-app:1.0.0</code>, built on an old UBI 8.4 image, and <code>current-app:2.0.0</code>, built today on the current UBI 9 minimal image. You deploy both, trace each version tag back to the Red Hat build behind it, search the whole cluster by tag and image age, read the CVEs in the portal and with <code>roxctl</code>, and add a first policy that flags fixable CVEs of severity Important or higher. The policy only reports for now. Step 2 turns it into a block.</p>
 </div>
 </div>
 </div>
@@ -228,7 +237,7 @@
 <p><a href="00-setup.html" class="xref page">Cluster Setup</a> completed, including the scanner check</p>
 </li>
 <li>
-<p><code>source myenv.sh</code> run in your current shell, so <code>CURRENT_IMAGE</code>, <code>ACS_CENTRAL_ROUTE</code>, and <code>ROX_API_TOKEN</code> are set</p>
+<p><code>source myenv.sh</code> run in your current shell, so <code>CURRENT_IMAGE</code>, <code>ACS_CLUSTER_NAME</code>, <code>ACS_CENTRAL_ROUTE</code>, and <code>ROX_API_TOKEN</code> are set</p>
 </li>
 <li>
 <p><code>roxctl</code> available in the repository root</p>
@@ -241,7 +250,10 @@
 <h2 id="_how_it_works"><a class="anchor" href="#_how_it_works"></a>How it works</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Sensor watches the workloads on the cluster and sends their image references to Central. Central scans each image, stores the result by digest, and evaluates every policy whose scope matches the workload. A violation appears when a workload matches all the criteria in one policy section. The policy you add in this step is a Kubernetes <code>SecurityPolicy</code> custom resource that the RHACS <code>config-controller</code> copies into Central.</p>
+<p>An image has three names. The tag (<code>1.0.0</code>) is a label that someone can move to a new build. The digest (<code>sha256:&#8230;&#8203;</code>) is computed from the content and always names the same image. Red Hat images also carry <code>version</code> and <code>release</code> labels inside the image, which name the Red Hat build it was made from. OpenShift records the digest of every running container, and ACS stores every image by digest, together with its labels, creation date, and scan results.</p>
+</div>
+<div class="paragraph">
+<p>Sensor watches the workloads on the cluster and sends their image references to Central. Central has the images scanned, stores the result by digest, and evaluates every policy whose scope matches the workload. A violation appears when a workload matches all the criteria in one policy section. The policy you add in this step is a Kubernetes <code>SecurityPolicy</code> custom resource that the RHACS <code>config-controller</code> copies into Central.</p>
 </div>
 </div>
 </div>
@@ -249,27 +261,92 @@
 <h2 id="_steps_to_apply"><a class="anchor" href="#_steps_to_apply"></a>Steps to apply</h2>
 <div class="sectionbody">
 <div class="sect2">
-<h3 id="deploy-workloads"><a class="anchor" href="#deploy-workloads"></a>1. Deploy two workloads</h3>
+<h3 id="tag-images"><a class="anchor" href="#tag-images"></a>1. Publish the two application versions</h3>
 <div class="paragraph">
-<p><span class="icon"><i class="fa fa-clock"></i></span> ~15 seconds (both images are pulled on first use)</p>
+<p><span class="icon"><i class="fa fa-clock"></i></span> ~35 seconds (the in-cluster build of <code>current-app:2.0.0</code>)</p>
 </div>
 <div class="paragraph">
-<p><strong>What:</strong> Create the <code>acs-image-demo</code> namespace with a legacy workload and a current workload.</p>
+<p><strong>What:</strong> Create the <code>acs-image-demo</code> namespace and the two image tags <code>legacy-app:1.0.0</code> and <code>current-app:2.0.0</code> in the internal registry.</p>
 </div>
 <div class="paragraph">
-<p><strong>Why:</strong> Comparing an old image with a current one makes the CVE numbers and the policy results easy to read.</p>
+<p><strong>Why:</strong> Applications are deployed by their own version, not by the name of a base image, so the rest of the workshop works with version tags in the <code>x.y.z</code> format.</p>
 </div>
 <div class="paragraph">
-<p>The current workload uses <code>${CURRENT_IMAGE}</code>, which <code>myenv.sh</code> resolved to a digest, so it goes through <code>envsubst</code>:</p>
+<p><code>01-inventory-cve/02-images.yaml</code> holds two <code>ImageStream</code> resources and one <code>BuildConfig</code>:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>legacy-app:1.0.0</code> points to one Red Hat UBI 8.4 build from October 2021, pinned by digest. OpenShift imports it into the internal registry.</p>
+</li>
+<li>
+<p><code>current-app:2.0.0</code> is built in the cluster. The build starts from the current UBI 9 minimal image (<code>CURRENT_IMAGE</code>, a digest) and installs every package update that the base image does not include yet.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>The file uses <code>${CURRENT_IMAGE}</code>, so it goes through <code>envsubst</code>:</p>
 </div>
 <div class="listingblock console-input">
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub apply -f 01-inventory-cve/01-namespace.yaml
-oc --context hub apply -f 01-inventory-cve/02-legacy-app.yaml
-envsubst &lt; 01-inventory-cve/03-current-app.yaml | oc --context hub apply -f -
+envsubst &lt; 01-inventory-cve/02-images.yaml | oc --context hub apply -f -
+oc --context hub start-build current-app -n acs-image-demo --wait</code></pre>
+</div>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+<code>oc tag &lt;source-image&gt; &lt;imagestream&gt;:&lt;tag&gt;</code> creates the same kind of tag from the command line, for example:
+<code>oc --context hub tag --reference-policy=local registry.access.redhat.com/ubi8/ubi@sha256:53d3a0837cf04ba4c687ddb39b487dc86efdbc14bd528778a7fa522637b1a3a0 acs-image-demo/legacy-app:1.0.0</code>
+</td>
+</tr>
+</table>
+</div>
+<details>
+<summary class="title">Verify: Both version tags exist</summary>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub get istag -n acs-image-demo</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">NAME                IMAGE REFERENCE                                                                                                                                       UPDATED
+current-app:2.0.0   image-registry.openshift-image-registry.svc:5000/acs-image-demo/current-app@sha256:d11758c5fdeb3046b0277f8ba7fd729bd8cb744d2512eabe0595a55e91963afd   3 seconds ago
+legacy-app:1.0.0    image-registry.openshift-image-registry.svc:5000/acs-image-demo/legacy-app@sha256:53d3a0837cf04ba4c687ddb39b487dc86efdbc14bd528778a7fa522637b1a3a0    32 seconds ago</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Each tag resolves to a digest. The digest of <code>current-app:2.0.0</code> is new, because the build created a new image. The digest of <code>legacy-app:1.0.0</code> is the digest of the Red Hat image.</p>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="deploy-workloads"><a class="anchor" href="#deploy-workloads"></a>2. Deploy the two versions</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Deploy <code>legacy-app</code> and <code>current-app</code> from their version tags.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> Comparing an old build with a current one makes the CVE numbers and the policy results easy to read.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub apply -f 01-inventory-cve/03-legacy-app.yaml
+oc --context hub apply -f 01-inventory-cve/04-current-app.yaml
 oc --context hub wait deploy --all -n acs-image-demo \
   --for=condition=Available --timeout=300s</code></pre>
 </div>
+</div>
+<div class="paragraph">
+<p>Both deployments set <code>imagePullPolicy: Always</code>. A version tag can be moved to a new build, and with the default policy (<code>IfNotPresent</code>) a node keeps running the build it pulled first under that tag.</p>
 </div>
 <details>
 <summary class="title">Verify: Both workloads are running</summary>
@@ -282,8 +359,8 @@ oc --context hub wait deploy --all -n acs-image-demo \
 <div class="listingblock console-output">
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">NAME          READY   UP-TO-DATE   AVAILABLE   AGE
-current-app   1/1     1            1           11s
-legacy-app    1/1     1            1           12s</code></pre>
+current-app   1/1     1            1           4s
+legacy-app    1/1     1            1           5s</code></pre>
 </div>
 </div>
 </div>
@@ -291,60 +368,178 @@ legacy-app    1/1     1            1           12s</code></pre>
 <hr>
 </div>
 <div class="sect2">
-<h3 id="inventory"><a class="anchor" href="#inventory"></a>2. List what is running</h3>
+<h3 id="inventory"><a class="anchor" href="#inventory"></a>3. List what is running</h3>
 <div class="paragraph">
-<p><strong>What:</strong> Print each pod&#8217;s image reference and resolved digest, then ask ACS which images it tracks in the namespace.</p>
+<p><strong>What:</strong> Print the image tag and the resolved digest of each running pod, then ask ACS which images it tracks in the namespace.</p>
 </div>
 <div class="paragraph">
-<p><strong>Why:</strong> A tag can move to a different build at any time, while the digest names the exact image that runs. ACS stores images by name and digest and has no separate "application version" object.</p>
+<p><strong>Why:</strong> The tag in the pod spec is what someone asked for. The digest in the pod status is the image that runs, and it is the key under which ACS keeps the scan results.</p>
 </div>
 <div class="listingblock console-input">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub get pods -n acs-image-demo \
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub get pods -n acs-image-demo --field-selector=status.phase=Running \
   -o custom-columns='POD:.metadata.name,IMAGE:.spec.containers[0].image,IMAGE_ID:.status.containerStatuses[0].imageID'</code></pre>
 </div>
+</div>
+<div class="paragraph">
+<p>The <code>--field-selector</code> hides the completed build pod.</p>
 </div>
 <div class="listingblock console-input">
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">curl -skG -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/images" \
   --data-urlencode "query=Namespace:acs-image-demo" \
-  | jq -r '.images[] | [.name, .id] | @tsv'</code></pre>
+  | jq -r '.images[] | [.name, .created[0:10], .cves, .fixableCves] | @tsv'</code></pre>
 </div>
 </div>
 <div class="paragraph">
-<p>The legacy pod shows the tag <code>8.4</code> in its spec and a digest in its image ID. The current pod shows the digest in both places.</p>
+<p>The ACS list shows each image with its build date, its number of CVEs, and how many of them have a fix.</p>
 </div>
 <details>
-<summary class="title">Verify: ACS lists both images</summary>
+<summary class="title">Verify: Each pod runs a version tag, and ACS has scanned both images</summary>
 <div class="content">
 <div class="paragraph">
-<p>The <code>oc</code> command prints the tag <code>8.4</code> for the legacy pod and a digest for both image IDs (trimmed):</p>
+<p>The <code>IMAGE</code> column shows the version tags, and <code>IMAGE_ID</code> shows the digests behind them (registry host shortened to <code>&lt;registry&gt;</code> here):</p>
 </div>
 <div class="listingblock console-output">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">POD                            IMAGE                                                       IMAGE_ID
-current-app-5cb59559dc-xs76p   registry.access.redhat.com/ubi9/ubi-minimal@sha256:68b9...  registry.access.redhat.com/ubi9/ubi-minimal@sha256:68b9...
-legacy-app-5964d57774-9c485    registry.access.redhat.com/ubi8/ubi:8.4                     registry.access.redhat.com/ubi8/ubi@sha256:53d3a083...</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">POD                            IMAGE                                          IMAGE_ID
+current-app-864b5c97f8-8blrv   &lt;registry&gt;/acs-image-demo/current-app:2.0.0   &lt;registry&gt;/acs-image-demo/current-app@sha256:d11758c5fdeb...
+legacy-app-554b996c89-lplkb    &lt;registry&gt;/acs-image-demo/legacy-app:1.0.0    &lt;registry&gt;/acs-image-demo/legacy-app@sha256:53d3a0837cf0...</code></pre>
 </div>
 </div>
 <div class="paragraph">
-<p>The ACS query returns the same two images, each with its digest as the ID:</p>
+<p><code>&lt;registry&gt;</code> is <code>image-registry.openshift-image-registry.svc:5000</code>. The ACS query lists the same two images:</p>
 </div>
 <div class="listingblock console-output">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">registry.access.redhat.com/ubi8/ubi:8.4	sha256:53d3a0837cf04ba4c687ddb39b487dc86efdbc14bd528778a7fa522637b1a3a0
-registry.access.redhat.com/ubi9/ubi-minimal@sha256:68b92732accbffdd8e2491b4c29976634ed92459f5779dac2aad670c967337c7	sha256:68b92732accbffdd8e2491b4c29976634ed92459f5779dac2aad670c967337c7</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">image-registry.openshift-image-registry.svc:5000/acs-image-demo/legacy-app:1.0.0	2021-10-26	781	383
+image-registry.openshift-image-registry.svc:5000/acs-image-demo/current-app:2.0.0	2026-10-09	129	0</code></pre>
 </div>
 </div>
 <div class="paragraph">
-<p>If the ACS list is empty, Sensor has not reported the workloads yet. Wait 30 seconds and run the <code>curl</code> command again.</p>
+<p>Version <code>1.0.0</code> is almost five years old and has 383 CVEs with a fix. Version <code>2.0.0</code> was built today and has none with a fix. If the ACS list is empty or shows 0 CVEs, Sensor has not reported the workloads yet. Wait 30 seconds and run the <code>curl</code> command again.</p>
 </div>
 </div>
 </details>
 <hr>
 </div>
 <div class="sect2">
-<h3 id="explore-portal"><a class="anchor" href="#explore-portal"></a>3. Explore the CVEs in the portal</h3>
+<h3 id="build-behind-tag"><a class="anchor" href="#build-behind-tag"></a>4. Find the build behind a version tag</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Read the <code>name</code>, <code>version</code>, and <code>release</code> labels of each image, from OpenShift and from ACS, and open the image in the ACS portal.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> The application version says nothing about the base image. The labels name the Red Hat build each version was made from, so you know which builds to replace when Red Hat publishes a fix.</p>
+</div>
+<div class="paragraph">
+<p>From OpenShift, the image stream tag carries the image metadata:</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">for tag in legacy-app:1.0.0 current-app:2.0.0; do
+  oc --context hub get istag "${tag}" -n acs-image-demo -o json \
+    | jq -r --arg tag "${tag}" '.image.dockerImageMetadata | [$tag, .Config.Labels.name,
+        .Config.Labels.version + "-" + .Config.Labels.release, .Created[0:10],
+        (.Config.Labels["io.openshift.build.name"] // "-")] | @tsv'
+done</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>ACS keeps the same labels with the scan of each image:</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">curl -skG -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/images" \
+  --data-urlencode "query=Namespace:acs-image-demo" | jq -r '.images[] | [.id, .name] | @tsv' \
+  | while IFS=$'\t' read -r id name; do
+      curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/images/${id}" \
+        | jq -r --arg app "${name##*/}" '[$app, .metadata.v1.labels.name,
+            .metadata.v1.labels.version + "-" + .metadata.v1.labels.release, .scan.operatingSystem] | @tsv'
+    done</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>In the ACS portal, go to <strong>Vulnerability Management &gt; Results</strong>, select the <strong>Image</strong> view, filter by the namespace <code>acs-image-demo</code> as in sub-step 6, and open <code>acs-image-demo/legacy-app:1.0.0</code>. The header shows the tag, the digest, the operating system, and the age of the image. The <strong>Resources</strong> tab lists the deployments that run it.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="_images/01-image-details.png" alt="ACS image page for acs-image-demo/legacy-app:1.0.0 with its digest" width="OS rhel:8" height="age 4 years">
+</div>
+<div class="title">Figure 1. Vulnerability Management &gt; Results &gt; image page - version 1.0.0 and the deployment that runs it</div>
+</div>
+<div class="paragraph">
+<p>The header says <strong>No signature found</strong>. Red Hat signs its images under their original name in <code>registry.access.redhat.com</code>, and the copy in the internal registry is a different name. Signature checks are not part of this session.</p>
+</div>
+<details>
+<summary class="title">Verify: Each version maps to one Red Hat build</summary>
+<div class="content">
+<div class="paragraph">
+<p>The OpenShift query prints the tag, the Red Hat image name, the build (<code>version-release</code>), the creation date, and the OpenShift build that made the image:</p>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">legacy-app:1.0.0	ubi8	8.4-213	2021-10-26	-
+current-app:2.0.0	ubi9/ubi-minimal	9.8-1791279563	2026-10-09	current-app-1</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The ACS query shows the same builds and the operating system that the scanner found:</p>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">current-app:2.0.0	ubi9/ubi-minimal	9.8-1791279563	rhel:9
+legacy-app:1.0.0	ubi8	8.4-213	rhel:8</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><code>current-app:2.0.0</code> keeps the labels of its base image (<code>9.8-1791279563</code>) but has a creation date of today, because the build added the package updates on top.</p>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="search-cluster"><a class="anchor" href="#search-cluster"></a>5. Search images across the cluster</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Ask ACS for every deployment on the cluster that uses the <code>latest</code> tag or an image older than 365 days.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> The same questions matter outside the workshop namespace, and ACS answers them for every namespace at once.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">for q in "Image Tag:latest" "Image Created Time:&gt;365d"; do
+  echo "== ${q}"
+  curl -skG -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/deployments" \
+    --data-urlencode "query=${q}" | jq -r '.deployments[] | [.namespace, .name] | @tsv' | sort -u
+done</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The query syntax is the same as in the search bar of the portal: <code>&lt;field&gt;:&lt;value&gt;</code>, with <code>+</code> between several criteria. Other useful fields are <code>Image Tag</code>, <code>Image Registry</code>, <code>Image OS</code>, and <code>Namespace</code>.</p>
+</div>
+<details>
+<summary class="title">Verify: legacy-app is one of the old images on the cluster</summary>
+<div class="content">
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">== Image Tag:latest
+== Image Created Time:&gt;365d
+acs-image-demo	legacy-app
+keycloak	keycloak-pgsql
+openshift-lightspeed	lightspeed-postgres-server
+showroom-&lt;guid&gt;	showroom</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>On the validation cluster no deployment used <code>latest</code>. The other three old images belong to products that came with the cluster. Your list depends on what runs on your cluster.</p>
+</div>
+</div>
+</details>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="explore-portal"><a class="anchor" href="#explore-portal"></a>6. Explore the CVEs in the portal</h3>
 <div class="paragraph">
 <p><strong>What:</strong> Open the vulnerability results for the <code>acs-image-demo</code> namespace and narrow them to fixable CVEs of severity Critical or Important.</p>
 </div>
@@ -356,18 +551,18 @@ registry.access.redhat.com/ubi9/ubi-minimal@sha256:68b92732accbffdd8e2491b4c2997
 </div>
 <div class="imageblock">
 <div class="content">
-<img src="_images/01-workload-cves.png" alt="User workload vulnerabilities page filtered to namespace acs-image-demo" width="showing 71 CVEs in one image" height="ubi8/ubi:8.4">
+<img src="_images/01-workload-cves.png" alt="User workload vulnerabilities page filtered to namespace acs-image-demo" width="showing 71 CVEs in one image" height="acs-image-demo/legacy-app:1.0.0">
 </div>
-<div class="title">Figure 1. Vulnerability Management &gt; Results - fixable Critical and Important CVEs in acs-image-demo, Image view</div>
+<div class="title">Figure 2. Vulnerability Management &gt; Results - fixable Critical and Important CVEs in acs-image-demo, Image view</div>
 </div>
 <div class="paragraph">
 <p>Switch to the CVE view, open one CVE, and expand the image row. The <strong>CVE fixed in</strong> column names the package version that removes the CVE, and <strong>Advisory</strong> names the Red Hat erratum that ships it.</p>
 </div>
 <details>
-<summary class="title">Verify: Only the legacy image has fixable Critical or Important CVEs</summary>
+<summary class="title">Verify: Only version 1.0.0 has fixable Critical or Important CVEs</summary>
 <div class="content">
 <div class="paragraph">
-<p>The filtered view lists 71 CVEs, 1 image (<code>ubi8/ubi:8.4</code> in <code>registry.access.redhat.com</code>), and 1 deployment. For the CVE <code>CVE-2018-25032</code>, the expanded row showed the component <code>zlib</code> at version <code>1.2.11-17.el8</code>, fixed in <code>0:1.2.11-18.el8_5</code> by <code>RHSA-2022:1642</code>.</p>
+<p>The filtered view lists 71 CVEs, 1 image (<code>acs-image-demo/legacy-app:1.0.0</code> in <code>image-registry.openshift-image-registry.svc:5000</code>), and 1 deployment. For the CVE <code>CVE-2018-25032</code>, the expanded row showed the component <code>zlib</code> at version <code>1.2.11-17.el8</code>, fixed in <code>0:1.2.11-18.el8_5</code> by <code>RHSA-2022:1642</code>.</p>
 </div>
 <div class="admonitionblock note">
 <table>
@@ -376,7 +571,7 @@ registry.access.redhat.com/ubi9/ubi-minimal@sha256:68b92732accbffdd8e2491b4c2997
 <i class="fa icon-note" title="Note"></i>
 </td>
 <td class="content">
-The current UBI 9 minimal image is not in the list, although it is not free of CVEs. On the validation date it had six Important CVEs and none of them had a fix yet. Unfixed CVEs drop out of a <strong>Fixable</strong> filter, and they do not match the policy you add in sub-step 5.
+<code>current-app:2.0.0</code> is not in the list, although it is not free of CVEs. On the validation date it had five Important CVEs and none of them had a fix yet. Unfixed CVEs drop out of a <strong>Fixable</strong> filter, and they do not match the policy you add in sub-step 8. The base image alone had one more Important CVE, in <code>openssl-libs</code>, with a fix that Red Hat had published but not yet built into UBI 9 minimal. The build in sub-step 1 installed that fix.
 </td>
 </tr>
 </table>
@@ -386,36 +581,47 @@ The current UBI 9 minimal image is not in the list, although it is not free of C
 <hr>
 </div>
 <div class="sect2">
-<h3 id="roxctl-scan"><a class="anchor" href="#roxctl-scan"></a>4. Scan both images from the CLI</h3>
+<h3 id="roxctl-scan"><a class="anchor" href="#roxctl-scan"></a>7. Scan both versions from the CLI</h3>
 <div class="paragraph">
-<p><strong>What:</strong> Use <code>roxctl image scan</code> to print the Critical and Important CVEs of both images and their severity counts.</p>
+<p><span class="icon"><i class="fa fa-clock"></i></span> ~25 seconds (about 13 seconds per scan through the cluster)</p>
+</div>
+<div class="paragraph">
+<p><strong>What:</strong> Use <code>roxctl image scan</code> to print the Critical and Important CVEs of version <code>1.0.0</code> and the severity counts of both versions.</p>
 </div>
 <div class="paragraph">
 <p><strong>Why:</strong> The CLI returns the same data as the portal in a form you can script, which is what a CI pipeline uses later.</p>
 </div>
+<div class="paragraph">
+<p>Images in the internal registry are scanned through the secured cluster, which has the pull credentials. The <code>--cluster</code> flag sends the scan there:</p>
+</div>
 <div class="listingblock console-input">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">roxctl --insecure-skip-tls-verify image scan --image registry.access.redhat.com/ubi8/ubi:8.4 \
-  --severity CRITICAL,IMPORTANT --output table | head -20</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">REG=image-registry.openshift-image-registry.svc:5000/acs-image-demo
+roxctl --insecure-skip-tls-verify image scan --cluster "${ACS_CLUSTER_NAME}" \
+  --image "${REG}/legacy-app:1.0.0" --severity CRITICAL,IMPORTANT --output table | head -20</code></pre>
 </div>
 </div>
 <div class="listingblock console-input">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">for img in registry.access.redhat.com/ubi8/ubi:8.4 "${CURRENT_IMAGE}"; do
-  echo "== ${img}"
-  roxctl --insecure-skip-tls-verify image scan --image "${img}" --output json | jq '.result.summary'
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">for img in "${REG}/legacy-app:1.0.0" "${REG}/current-app:2.0.0"; do
+  echo "== ${img##*/}"
+  roxctl --insecure-skip-tls-verify image scan --cluster "${ACS_CLUSTER_NAME}" \
+    --image "${img}" --output json | jq -c '.result.summary'
 done</code></pre>
 </div>
 </div>
+<div class="paragraph">
+<p>Without <code>--cluster</code>, Central tries to pull the image itself and fails with <code>no matching image registries found</code>, because it has no credentials for the internal registry.</p>
+</div>
 <details>
-<summary class="title">Verify: The legacy image has far more CVEs than the current one</summary>
+<summary class="title">Verify: Version 1.0.0 has far more CVEs than version 2.0.0</summary>
 <div class="content">
 <div class="paragraph">
 <p>The table starts with a summary line, then one row per CVE. Further right, each row also has the fixed version and the advisory (cut on the right here):</p>
 </div>
 <div class="listingblock console-output">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">Scan results for image: registry.access.redhat.com/ubi8/ubi:8.4
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">Scan results for image: image-registry.openshift-image-registry.svc:5000/acs-image-demo/legacy-app:1.0.0
 (TOTAL-COMPONENTS: 53, TOTAL-VULNERABILITIES: 84, LOW: 0, MODERATE: 0, IMPORTANT: 84, CRITICAL: 0)
 
 +----------------------------------------+-------------------+-----------------+-----------+------+------------
@@ -426,28 +632,14 @@ done</code></pre>
 </div>
 </div>
 <div class="paragraph">
-<p>The loop prints the severity counts of both images:</p>
+<p>The loop prints the severity counts of both versions:</p>
 </div>
 <div class="listingblock console-output">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">== registry.access.redhat.com/ubi8/ubi:8.4
-{
-  "CRITICAL": 0,
-  "IMPORTANT": 84,
-  "LOW": 286,
-  "MODERATE": 412,
-  "TOTAL-COMPONENTS": 112,
-  "TOTAL-VULNERABILITIES": 782
-}
-== registry.access.redhat.com/ubi9/ubi-minimal@sha256:68b92732accbffdd8e2491b4c29976634ed92459f5779dac2aad670c967337c7
-{
-  "CRITICAL": 0,
-  "IMPORTANT": 6,
-  "LOW": 56,
-  "MODERATE": 68,
-  "TOTAL-COMPONENTS": 36,
-  "TOTAL-VULNERABILITIES": 130
-}</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">== legacy-app:1.0.0
+{"CRITICAL":0,"IMPORTANT":84,"LOW":285,"MODERATE":412,"TOTAL-COMPONENTS":112,"TOTAL-VULNERABILITIES":781}
+== current-app:2.0.0
+{"CRITICAL":0,"IMPORTANT":5,"LOW":56,"MODERATE":68,"TOTAL-COMPONENTS":37,"TOTAL-VULNERABILITIES":129}</code></pre>
 </div>
 </div>
 <div class="paragraph">
@@ -458,7 +650,7 @@ done</code></pre>
 <hr>
 </div>
 <div class="sect2">
-<h3 id="apply-policy"><a class="anchor" href="#apply-policy"></a>5. Apply the CVE policy</h3>
+<h3 id="apply-policy"><a class="anchor" href="#apply-policy"></a>8. Apply the CVE policy</h3>
 <div class="paragraph">
 <p><strong>What:</strong> Create a <code>SecurityPolicy</code> that flags images with a fixable CVE of severity Important or higher in <code>acs-image-demo</code>.</p>
 </div>
@@ -470,7 +662,7 @@ done</code></pre>
 </div>
 <div class="listingblock console-input">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub apply -f 01-inventory-cve/04-policy-fixable-important-cves.yaml</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub apply -f 01-inventory-cve/05-policy-fixable-important-cves.yaml</code></pre>
 </div>
 </div>
 <div class="admonitionblock note">
@@ -504,7 +696,7 @@ done</code></pre>
 <hr>
 </div>
 <div class="sect2">
-<h3 id="violations"><a class="anchor" href="#violations"></a>6. Review the violations</h3>
+<h3 id="violations"><a class="anchor" href="#violations"></a>9. Review the violations</h3>
 <div class="paragraph">
 <p><strong>What:</strong> List the violations of the new policy in the portal and through the API.</p>
 </div>
@@ -518,7 +710,7 @@ done</code></pre>
 <div class="content">
 <img src="_images/01-violations.png" alt="User workload violations filtered by namespace acs-image-demo and policy name Workshop" width="with one violation for legacy-app">
 </div>
-<div class="title">Figure 2. Violations - the workshop CVE policy flags legacy-app</div>
+<div class="title">Figure 3. Violations - the workshop CVE policy flags legacy-app</div>
 </div>
 <div class="paragraph">
 <p>Without the policy filter, the namespace shows several more violations from built-in ACS policies, such as <strong>Fixable Severity at least Important</strong> and <strong>Red Hat Package Manager in Image</strong>.</p>
@@ -543,17 +735,20 @@ done</code></pre>
 <hr>
 </div>
 <div class="sect2">
-<h3 id="image-check"><a class="anchor" href="#image-check"></a>7. Run a build-time check</h3>
+<h3 id="image-check"><a class="anchor" href="#image-check"></a>10. Run a build-time check</h3>
 <div class="paragraph">
-<p><strong>What:</strong> Run <code>roxctl image check</code> against the legacy image, print the exit code, and list each violated policy with its <code>failingCheck</code> flag.</p>
+<p><span class="icon"><i class="fa fa-clock"></i></span> ~10 seconds (the check goes through the cluster)</p>
+</div>
+<div class="paragraph">
+<p><strong>What:</strong> Run <code>roxctl image check</code> against version <code>1.0.0</code>, print the exit code, and list each violated policy with its <code>failingCheck</code> flag.</p>
 </div>
 <div class="paragraph">
 <p><strong>Why:</strong> This is the same check a CI pipeline runs before it pushes an image. It shows that the policy also applies at build time.</p>
 </div>
 <div class="listingblock console-input">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">roxctl --insecure-skip-tls-verify image check --image registry.access.redhat.com/ubi8/ubi:8.4 \
-  --output json &gt; /tmp/image-check.json
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">roxctl --insecure-skip-tls-verify image check --cluster "${ACS_CLUSTER_NAME}" \
+  --image "${REG}/legacy-app:1.0.0" --output json &gt; /tmp/image-check.json
 echo "exit code: $?"
 jq -r '.results[].violatedPolicies[] | [.name, .severity, .failingCheck] | @tsv' /tmp/image-check.json</code></pre>
 </div>
@@ -562,7 +757,7 @@ jq -r '.results[].violatedPolicies[] | [.name, .severity, .failingCheck] | @tsv'
 <p><code>roxctl image check</code> fails, with exit code <code>1</code>, when a violated policy has the "fail build" enforcement action (<code>failingCheck</code> is <code>true</code>). The workshop policy is listed with <code>false</code>, because it has no enforcement actions yet. You add them in Step 2.</p>
 </div>
 <div class="paragraph">
-<p>The exit code is already <code>1</code>, because the built-in policy <strong>Fixable Severity at least Important</strong> ships with the "fail build" action and the legacy image violates it. A pipeline that runs <code>roxctl image check</code> against a default Central fails on this image before you change anything.</p>
+<p><code>REG</code> is the variable from sub-step 7. The exit code is already <code>1</code>, because the built-in policy <strong>Fixable Severity at least Important</strong> ships with the "fail build" action and version <code>1.0.0</code> violates it. A pipeline that runs <code>roxctl image check</code> against a default Central fails on this image before you change anything.</p>
 </div>
 <details>
 <summary class="title">Verify: The workshop policy is listed and does not fail the check</summary>
@@ -600,7 +795,11 @@ Red Hat Package Manager in Image	LOW	false</code></pre>
 <tbody>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Nobody knows which image builds run on the cluster</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">The pod image IDs and the ACS image list show each image by name and digest</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Version tags, digests, and the Red Hat <code>version</code> and <code>release</code> labels tie every running workload to one build, in OpenShift and in ACS</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Old or <code>latest</code> images hide in other namespaces</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">ACS search finds them across the whole cluster by tag and age</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">CVE lists are too long to act on</p></td>

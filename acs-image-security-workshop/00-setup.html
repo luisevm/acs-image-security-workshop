@@ -86,10 +86,19 @@
     <a class="nav-link" href="01-inventory-cve.html">Step 1: Inventory and CVE Posture</a>
 <ul class="nav-list">
   <li class="nav-item" data-depth="2">
-    <a class="nav-link" href="01-inventory-cve.html#deploy-workloads">Deploy Two Workloads</a>
+    <a class="nav-link" href="01-inventory-cve.html#tag-images">Publish Two Application Versions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#deploy-workloads">Deploy the Two Versions</a>
   </li>
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="01-inventory-cve.html#inventory">List What Is Running</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#build-behind-tag">Find the Build Behind a Tag</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#search-cluster">Search Images Across the Cluster</a>
   </li>
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="01-inventory-cve.html#explore-portal">Explore CVEs in the Portal</a>
@@ -419,8 +428,8 @@ case ":$PATH:" in *":$PWD:"*) ;; *) export PATH="$PWD:$PATH" ;; esac</code></pre
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>CURRENT_IMAGE</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><code>01-inventory-cve/03-current-app.yaml</code></p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock">Current UBI 9 minimal image, referenced by digest</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>01-inventory-cve/02-images.yaml</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Current UBI 9 minimal image, referenced by digest. Step 1 builds <code>current-app:2.0.0</code> from it</p></td>
 </tr>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock"><code>ACS_CHANNEL</code>, <code>GITOPS_CHANNEL</code>, <code>ACM_CHANNEL</code></p></td>

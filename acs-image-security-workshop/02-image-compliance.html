@@ -86,10 +86,19 @@
     <a class="nav-link" href="01-inventory-cve.html">Step 1: Inventory and CVE Posture</a>
 <ul class="nav-list">
   <li class="nav-item" data-depth="2">
-    <a class="nav-link" href="01-inventory-cve.html#deploy-workloads">Deploy Two Workloads</a>
+    <a class="nav-link" href="01-inventory-cve.html#tag-images">Publish Two Application Versions</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#deploy-workloads">Deploy the Two Versions</a>
   </li>
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="01-inventory-cve.html#inventory">List What Is Running</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#build-behind-tag">Find the Build Behind a Tag</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-inventory-cve.html#search-cluster">Search Images Across the Cluster</a>
   </li>
   <li class="nav-item" data-depth="2">
     <a class="nav-link" href="01-inventory-cve.html#explore-portal">Explore CVEs in the Portal</a>
@@ -254,7 +263,7 @@
 <div class="sect2">
 <h3 id="alert-sink"><a class="anchor" href="#alert-sink"></a>1. Set up an alert receiver</h3>
 <div class="paragraph">
-<p><span class="icon"><i class="fa fa-clock"></i></span> ~30 seconds the first time on a cluster (the pull of the Python image), about 5 seconds when the image is cached</p>
+<p><span class="icon"><i class="fa fa-clock"></i></span> ~20-30 seconds (image import and pull of the Python image, then the receiver start)</p>
 </div>
 <div class="paragraph">
 <p><strong>What:</strong> Deploy a small webhook receiver in <code>acs-alert-sink</code> and register it in ACS as a generic webhook notifier named <code>workshop-alert-sink</code>.</p>
@@ -264,17 +273,23 @@
 </div>
 <div class="listingblock console-input">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub apply -f 02-image-compliance/01-alert-sink.yaml
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc --context hub apply -f 02-image-compliance/01-alert-sink-image.yaml
+until oc --context hub get sa default -n acs-alert-sink \
+    -o jsonpath='{.imagePullSecrets[0].name}' 2&gt;/dev/null | grep -q .; do sleep 2; done
+oc --context hub apply -f 02-image-compliance/02-alert-sink.yaml
 oc --context hub wait deploy/alert-sink -n acs-alert-sink \
   --for=condition=Available --timeout=300s</code></pre>
 </div>
+</div>
+<div class="paragraph">
+<p>The first file creates the namespace and the image tag <code>alert-sink:1.0.0</code>, which points to one build of the Red Hat Python 3.11 image. The <code>until</code> loop waits for OpenShift to give the namespace&#8217;s service account its pull secret for the internal registry. A pod created before that secret exists cannot pull from the internal registry and stays in <code>ImagePullBackOff</code>.</p>
 </div>
 <div class="paragraph">
 <p>The notifier definition contains <code>${ACS_CENTRAL_ROUTE}</code>, so it goes through <code>envsubst</code> before it is sent to the API:</p>
 </div>
 <div class="listingblock console-input">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">envsubst &lt; 02-image-compliance/02-notifier.json \
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">envsubst &lt; 02-image-compliance/03-notifier.json \
   | curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" -H "Content-Type: application/json" \
     -X POST "https://${ACS_CENTRAL_ROUTE}/v1/notifiers" -d @- | jq '{id, name, type}'</code></pre>
 </div>
@@ -300,7 +315,7 @@ oc --context hub wait deploy/alert-sink -n acs-alert-sink \
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">NOTIFIER_ID=$(curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUTE}/v1/notifiers" \
   | jq -r '.notifiers[] | select(.name=="workshop-alert-sink") | .id')
-envsubst &lt; 02-image-compliance/02-notifier.json | jq --arg id "${NOTIFIER_ID}" '. + {id: $id}' \
+envsubst &lt; 02-image-compliance/03-notifier.json | jq --arg id "${NOTIFIER_ID}" '. + {id: $id}' \
   | curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" -H "Content-Type: application/json" \
     -X POST "https://${ACS_CENTRAL_ROUTE}/v1/notifiers/test" -d @-
 oc --context hub logs deploy/alert-sink -n acs-alert-sink --tail=1</code></pre>
@@ -366,7 +381,7 @@ ALERT policy='This is a test message created to test integration with StackRox.'
 </tbody>
 </table>
 <div class="paragraph">
-<p>The <code>Image Age</code> value is a number of days. The UBI 8.4 image was built in October 2021. The current UBI 9 minimal image was two days old on the validation date, so only <code>legacy-app</code> matches.</p>
+<p>The <code>Image Age</code> value is a number of days. Version <code>1.0.0</code> was built in October 2021 and version <code>2.0.0</code> in Step 1, so only <code>legacy-app</code> matches.</p>
 </div>
 <details>
 <summary class="title">Verify: Central accepted all four policies</summary>
@@ -442,7 +457,7 @@ Red Hat Package Manager in Image	LOW	false</code></pre>
 <div class="sect2">
 <h3 id="inform-alert"><a class="anchor" href="#inform-alert"></a>4. Deploy a workload and get alerted</h3>
 <div class="paragraph">
-<p><span class="icon"><i class="fa fa-clock"></i></span> ~15 seconds (deployment available after 9s, alert in the receiver&#8217;s log after 14s)</p>
+<p><span class="icon"><i class="fa fa-clock"></i></span> ~15-35 seconds (deployment available after 4-9s, alert in the receiver&#8217;s log after 14-33s)</p>
 </div>
 <div class="paragraph">
 <p><strong>What:</strong> Deploy the <code>latest</code>-tag workload and read the alert in the receiver&#8217;s log.</p>
@@ -469,14 +484,18 @@ oc --context hub wait deploy/bad-latest -n acs-image-demo \
 <summary class="title">Verify: The workload runs and the alert arrived</summary>
 <div class="content">
 <div class="paragraph">
-<p>The log has one <code>ALERT</code> line per new violation of a workshop policy: the test message from sub-step 1, the image-age violation of <code>legacy-app</code> raised in sub-step 2, and the latest-tag violation of <code>bad-latest</code>.</p>
+<p>The log has one <code>ALERT</code> line per new violation of a workshop policy: the test message from sub-step 1, the image-age violation of <code>legacy-app</code> raised in sub-step 2, and the violations of <code>bad-latest</code>.</p>
 </div>
 <div class="listingblock console-output">
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">ALERT policy='This is a test message created to test integration with StackRox.' deployment=None namespace=None stage='DEPLOY'
 ALERT policy='Workshop - Image older than 365 days' deployment='legacy-app' namespace='acs-image-demo' stage='DEPLOY'
-ALERT policy='Workshop - Image uses the latest tag' deployment='bad-latest' namespace='acs-image-demo' stage='DEPLOY'</code></pre>
+ALERT policy='Workshop - Image uses the latest tag' deployment='bad-latest' namespace='acs-image-demo' stage='DEPLOY'
+ALERT policy='Workshop - Fixable CVEs of severity Important or higher' deployment='bad-latest' namespace='acs-image-demo' stage='DEPLOY'</code></pre>
 </div>
+</div>
+<div class="paragraph">
+<p><code>bad-latest</code> runs the plain Red Hat image <code>ubi9/ubi-minimal:latest</code>, without the package updates that the Step 1 build added to <code>current-app:2.0.0</code>. On the validation date that image missed a fix for <code>openssl-libs</code>, so it also matched the CVE policy. Your log may or may not have this last line, depending on the CVE data of the day.</p>
 </div>
 <div class="paragraph">
 <p>The CVE violation of <code>legacy-app</code> is not in the log. It already existed in Step 1, and ACS notifies when a violation is raised, not when a notifier is added to its policy later.</p>
@@ -595,7 +614,7 @@ The registry and tag checks only read the image reference, so they run before an
 </table>
 </div>
 <div class="paragraph">
-<p>Each rejected request is also recorded as a violation with the state <strong>Attempted</strong> (the <strong>Attempted</strong> tab on the <strong>Violations</strong> page) and sent to the notifier.</p>
+<p>Each rejected request is also recorded as a violation with the state <strong>Attempted</strong> and sent to the notifier. Sub-step 7 shows them in the portal.</p>
 </div>
 <details>
 <summary class="title">Verify: Neither workload exists</summary>
@@ -666,10 +685,19 @@ Policy: Workshop - Fixable CVEs of severity Important or higher
 <i class="fa icon-note" title="Note"></i>
 </td>
 <td class="content">
-The restart of <code>current-app</code> is compliant only while its UBI 9 minimal image has no fixable Important or Critical CVE. When Red Hat publishes a fix that the image does not include yet, the CVE policy rejects the restart as well, until a rebuilt image is out and you redeploy with a new <code>CURRENT_IMAGE</code>. On the validation date, a fix for an <code>openssl-libs</code> CVE appeared between the two runs. The restart still went through because Central had not rescanned the image yet.
+The restart of <code>current-app</code> is compliant because the Step 1 build installed every package update that existed that day. When Red Hat publishes a fix for one of its packages later, the CVE policy rejects the restart as well. Run <code>oc --context hub start-build current-app -n acs-image-demo --wait</code> to rebuild version <code>2.0.0</code> with the fix, then restart.
 </td>
 </tr>
 </table>
+</div>
+<div class="paragraph">
+<p>Every rejected request is on record. In the portal, go to <strong>Violations</strong>, open the <strong>Attempted</strong> tab, and filter by the namespace <code>acs-image-demo</code> and the policy name <code>Workshop</code>. The <strong>Enforced</strong> column shows whether the admission controller blocked a create or an update.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="_images/02-attempted-violations.png" alt="Attempted violations in acs-image-demo with the Enforced column showing Blocked Deployment Update for legacy-app and current-app and Blocked Deployment Create for bad-registry">
+</div>
+<div class="title">Figure 1. Violations &gt; Attempted - the requests that the admission controller blocked</div>
 </div>
 <details>
 <summary class="title">Verify: Only the compliant restart went through</summary>
@@ -683,8 +711,8 @@ The restart of <code>current-app</code> is compliant only while its UBI 9 minima
 <div class="listingblock console-output">
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">NAME          REPLICAS   IMAGE
-current-app   1          registry.access.redhat.com/ubi9/ubi-minimal@sha256:68b92732accbffdd8e2491b4c29976634ed92459f5779dac2aad670c967337c7
-legacy-app    1          registry.access.redhat.com/ubi8/ubi:8.4</code></pre>
+current-app   1          image-registry.openshift-image-registry.svc:5000/acs-image-demo/current-app:2.0.0
+legacy-app    1          image-registry.openshift-image-registry.svc:5000/acs-image-demo/legacy-app:1.0.0</code></pre>
 </div>
 </div>
 </div>
@@ -694,6 +722,9 @@ legacy-app    1          registry.access.redhat.com/ubi8/ubi:8.4</code></pre>
 <div class="sect2">
 <h3 id="ci-gate"><a class="anchor" href="#ci-gate"></a>8. Fail the build-time check</h3>
 <div class="paragraph">
+<p><span class="icon"><i class="fa fa-clock"></i></span> ~10 seconds (the check goes through the cluster)</p>
+</div>
+<div class="paragraph">
 <p><strong>What:</strong> Run the Step 1 <code>roxctl image check</code> again.</p>
 </div>
 <div class="paragraph">
@@ -701,8 +732,9 @@ legacy-app    1          registry.access.redhat.com/ubi8/ubi:8.4</code></pre>
 </div>
 <div class="listingblock console-input">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">roxctl --insecure-skip-tls-verify image check --image registry.access.redhat.com/ubi8/ubi:8.4 \
-  --output json &gt; /tmp/image-check.json
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">REG=image-registry.openshift-image-registry.svc:5000/acs-image-demo
+roxctl --insecure-skip-tls-verify image check --cluster "${ACS_CLUSTER_NAME}" \
+  --image "${REG}/legacy-app:1.0.0" --output json &gt; /tmp/image-check.json
 echo "exit code: $?"
 jq -r '.results[].violatedPolicies[] | [.name, .severity, .failingCheck] | @tsv' /tmp/image-check.json</code></pre>
 </div>
@@ -911,10 +943,10 @@ oc --context hub delete securitypolicy workshop-latest-tag workshop-trusted-regi
   -n stackrox --ignore-not-found
 
 # 3. CVE policy back to the Step 1 version (inform only, no notifier)
-oc --context hub apply -f 01-inventory-cve/04-policy-fixable-important-cves.yaml
+oc --context hub apply -f 01-inventory-cve/05-policy-fixable-important-cves.yaml
 
 # 4. Workloads back to their Step 1 state
-envsubst &lt; 01-inventory-cve/03-current-app.yaml | oc --context hub apply -f -
+oc --context hub apply -f 01-inventory-cve/04-current-app.yaml
 oc --context hub scale deploy/legacy-app -n acs-image-demo --replicas=1
 oc --context hub wait deploy --all -n acs-image-demo --for=condition=Available --timeout=300s
 
@@ -925,7 +957,8 @@ NOTIFIER_ID=$(curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${AC
 [ -n "${NOTIFIER_ID}" ] &amp;&amp; until [ "$(curl -sk -o /dev/null -w '%{http_code}' \
   -H "Authorization: Bearer ${ROX_API_TOKEN}" -X DELETE \
   "https://${ACS_CENTRAL_ROUTE}/v1/notifiers/${NOTIFIER_ID}")" = 200 ]; do sleep 2; done
-oc --context hub delete -f 02-image-compliance/01-alert-sink.yaml --ignore-not-found --wait</code></pre>
+oc --context hub delete -f 02-image-compliance/02-alert-sink.yaml --ignore-not-found --wait
+oc --context hub delete -f 02-image-compliance/01-alert-sink-image.yaml --ignore-not-found --wait</code></pre>
 </div>
 </div>
 <div class="paragraph">
