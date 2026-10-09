@@ -235,8 +235,98 @@
 <div class="sect1 text-center strong">
 <h2>Know which images run on your cluster and stop the ones you do not want</h2>
 <div class="sectionbody">
+
+</div>
+</div>
+<div class="sect1">
+<h2>Introduction</h2>
+<div class="sectionbody">
 <div class="paragraph">
-<p>In this workshop you use Red Hat Advanced Cluster Security for Kubernetes (RHACS) on one OpenShift cluster. You start by finding out which images run, which version and Red Hat build each one is, and which of their CVEs have a fix. Then you write policies that alert on outdated or untrusted images and, once you trust them, block those images at admission. You move the policies into Git so that OpenShift GitOps keeps them in sync, and you finish with Red Hat Advanced Cluster Management (RHACM) keeping ACS and its admission enforcement in place.</p>
+<p>Most clusters run images that nobody has looked at in a while: an application built on a base image from years ago, a test deployment that pulls <code>latest</code>, a tool from a public registry. Each of them can carry vulnerabilities that already have a fix. Red Hat Advanced Cluster Security for Kubernetes (RHACS) shows what runs and what each image contains, and it can stop images that break your rules before they start.</p>
+</div>
+<div class="paragraph">
+<p>In this workshop you work on one OpenShift cluster with two versions of a small application: <code>legacy-app:1.0.0</code>, built on a Red Hat UBI 8.4 image from 2021, and <code>current-app:2.0.0</code>, built during the workshop on the current UBI 9 minimal image. You start by finding out what runs and what is fixable. Then you turn that knowledge into policies, first as alerts and then as blocks at admission and in the build pipeline. You move the policies into Git, and you finish with Red Hat Advanced Cluster Management (RHACM) making sure nobody can switch the blocking off.</p>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 14.2857%;">
+<col style="width: 42.8571%;">
+<col style="width: 42.8572%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Step</th>
+<th class="tableblock halign-left valign-top">What you do</th>
+<th class="tableblock halign-left valign-top">What you have at the end</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="00-setup.html" class="xref page">Setup</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Install RHACS, OpenShift GitOps, and RHACM, and register the cluster with ACS. Usually done before the session.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A cluster where ACS scans images and its admission controller can enforce policies</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="01-inventory-cve.html" class="xref page">1. Know Your Images</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Publish two application versions, trace each version tag to the Red Hat build behind it, search the cluster by tag and image age, and review fixable CVEs in the portal and with <code>roxctl</code>.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">An inventory of what runs, and a first policy that reports fixable Critical and Important CVEs</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="02-image-compliance.html" class="xref page">2. Alert, Then Block</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Add rules for the <code>latest</code> tag, approved registries, and image age. Send violations to a webhook, then switch the rules to enforce and test creates, updates, scaling, the CI check, and the break-glass bypass.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Four policies that block non-compliant images at admission and fail the build-time check</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="03-policies-as-code.html" class="xref page">3. Policies as Code</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Let OpenShift GitOps (Argo CD) manage the policies from your fork, change one with a commit, and watch manual changes get reverted.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Policies that change only through reviewed Git commits</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="05-acs-acm.html" class="xref page">5. Keep Enforcement On</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Apply an RHACM governance policy for the ACS secured cluster configuration, then turn enforcement off and delete the secured cluster services to see RHACM restore them.</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Admission enforcement that RHACM puts back when someone changes or removes it</p></td>
+</tr>
+</tbody>
+</table>
+<div class="sect2">
+<h3>Goals</h3>
+<div class="paragraph">
+<p>After the workshop you can:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Tie every running workload to its version tag, its image digest, and the Red Hat build it was made from, in OpenShift and in ACS</p>
+</li>
+<li>
+<p>Find images across the cluster by tag, registry, and age</p>
+</li>
+<li>
+<p>Separate the CVEs you can fix today from the ones that have no fix yet</p>
+</li>
+<li>
+<p>Write ACS policies for image tags, registries, age, and fixable CVEs, and send their violations to an external system</p>
+</li>
+<li>
+<p>Roll out a policy safely: inform first, then enforce at admission and at build time, with an audited emergency bypass</p>
+</li>
+<li>
+<p>Manage ACS policies as code with Argo CD, and know how the ACS portal treats a policy it does not own</p>
+</li>
+<li>
+<p>Use RHACM to keep the ACS admission controller enforcing on every cluster it manages</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="sect2">
+<h3>Before you start</h3>
+<div class="paragraph">
+<p>You need one OpenShift cluster with <code>cluster-admin</code> access, a workstation with <code>oc</code>, <code>jq</code>, <code>curl</code>, <code>git</code>, and <code>envsubst</code>, and a GitHub account for Step 3. The details are on the <a href="00-setup.html" class="xref page">Cluster Setup</a> page.</p>
+</div>
+<div class="paragraph">
+<p>The four hands-on steps take about two hours, including reading and the portal. Run the setup beforehand: the ACS scanner alone needs about 11 minutes after Central starts before it returns CVE data.</p>
+</div>
 </div>
 </div>
 </div>
