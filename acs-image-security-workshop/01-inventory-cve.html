@@ -519,10 +519,25 @@ legacy-app:1.0.0	ubi8	8.4-213	rhel:8</code></pre>
 <div class="sect2">
 <h3 id="search-cluster"><a class="anchor" href="#search-cluster"></a>5. Search images across the cluster</h3>
 <div class="paragraph">
-<p><strong>What:</strong> Ask ACS for every deployment on the cluster that uses the <code>latest</code> tag or an image older than 365 days.</p>
+<p><strong>What:</strong> Ask ACS, in the portal and through the API, for every deployment on the cluster that uses the <code>latest</code> tag or an image older than 365 days.</p>
 </div>
 <div class="paragraph">
 <p><strong>Why:</strong> The same questions matter outside the workshop namespace, and ACS answers them for every namespace at once.</p>
+</div>
+<div class="paragraph">
+<p>In the ACS portal, click <strong>Search</strong> in the top bar. In the filter box, type <code>Image Created Time</code>, select the suggestion <strong>Image Created Time:</strong>, type <code>&gt;365d</code>, and press <kbd>Enter</kbd>. The left column counts the matches per resource type. Select <strong>Deployments</strong> to see the workloads that run an old image. For the tag, start a new search with <code>Image Tag</code> and the value <code>latest</code>.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="_images/01-search-old-images.png" alt="ACS Search page with the filter Image Created Time &gt;365d and the Deployments category listing keycloak-pgsql" width="legacy-app" height="lightspeed-postgres-server">
+</div>
+<div class="title">Figure 2. Search - deployments that run an image older than 365 days, across all namespaces</div>
+</div>
+<div class="paragraph">
+<p>Each row links to the deployment in <strong>Risk</strong> and to its <strong>Violations</strong>. The <strong>Images</strong> category also lists images that ACS scanned earlier but that no longer run, so <strong>Deployments</strong> is the better answer to "what runs today".</p>
+</div>
+<div class="paragraph">
+<p>The API takes the same queries:</p>
 </div>
 <div class="listingblock console-input">
 <div class="content">
@@ -534,11 +549,14 @@ done</code></pre>
 </div>
 </div>
 <div class="paragraph">
-<p>The query syntax is the same as in the search bar of the portal: <code>&lt;field&gt;:&lt;value&gt;</code>, with <code>+</code> between several criteria. Other fields that work the same way are <code>Image Registry</code> (for example <code>Image Registry:quay.io</code>), <code>Image OS</code> (<code>Image OS:rhel:8</code>), and <code>Namespace</code>. <code>Namespace:acs-image-demo+Image Tag:1.0.0</code> combines two of them and returns <code>legacy-app</code>.</p>
+<p>The query syntax is the same as in the search box of the portal: <code>&lt;field&gt;:&lt;value&gt;</code>, with <code>+</code> between several criteria. Other fields that work the same way are <code>Image Registry</code> (for example <code>Image Registry:quay.io</code>), <code>Image OS</code> (<code>Image OS:rhel:8</code>), and <code>Namespace</code>. <code>Namespace:acs-image-demo+Image Tag:1.0.0</code> combines two of them and returns <code>legacy-app</code>.</p>
 </div>
 <details>
 <summary class="title">Verify: legacy-app is one of the old images on the cluster</summary>
 <div class="content">
+<div class="paragraph">
+<p>The portal shows four deployments under <strong>Deployments</strong>, and the API loop prints the same four:</p>
+</div>
 <div class="listingblock console-output">
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">== Image Tag:latest
@@ -571,7 +589,7 @@ showroom-&lt;guid&gt;	showroom</code></pre>
 <div class="content">
 <img src="_images/01-workload-cves.png" alt="User workload vulnerabilities page filtered to namespace acs-image-demo" width="showing 71 CVEs in one image" height="acs-image-demo/legacy-app:1.0.0">
 </div>
-<div class="title">Figure 2. Vulnerability Management &gt; Results - fixable Critical and Important CVEs in acs-image-demo, Image view</div>
+<div class="title">Figure 3. Vulnerability Management &gt; Results - fixable Critical and Important CVEs in acs-image-demo, Image view</div>
 </div>
 <div class="paragraph">
 <p>Switch to the CVE view, open one CVE, and expand the image row. The <strong>CVE fixed in</strong> column names the package version that removes the CVE, and <strong>Advisory</strong> names the Red Hat erratum that ships it.</p>
@@ -728,7 +746,7 @@ done</code></pre>
 <div class="content">
 <img src="_images/01-violations.png" alt="User workload violations filtered by namespace acs-image-demo and policy name Workshop" width="with one violation for legacy-app">
 </div>
-<div class="title">Figure 3. Violations - the workshop CVE policy flags legacy-app</div>
+<div class="title">Figure 4. Violations - the workshop CVE policy flags legacy-app</div>
 </div>
 <div class="paragraph">
 <p>Without the policy filter, the namespace shows several more violations from built-in ACS policies, such as <strong>Fixable Severity at least Important</strong> and <strong>Red Hat Package Manager in Image</strong>.</p>
