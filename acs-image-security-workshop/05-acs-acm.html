@@ -430,7 +430,21 @@ RHACM puts the setting back so fast that the 5-second loop above prints <code>Di
 </div>
 </div>
 <div class="paragraph">
-<p>The newest entry is at the top. RHACM found the drift and fixed it in the same second. RHACM copies the policy into the namespace of each managed cluster with the name <code>&lt;namespace&gt;.&lt;policy&gt;</code>, here <code>acs-policies.acs-image-enforcement-baseline</code> in <code>local-cluster</code>.</p>
+<p>The newest entry is at the top. RHACM found the drift and fixed it in the same second.</p>
+</div>
+<div class="paragraph">
+<p>The console shows the same history. In <strong>Fleet management &gt; Governance &gt; Policies</strong>, open <code>acs-image-enforcement-baseline</code>, select the <strong>Results</strong> tab, and click <strong>View history</strong> in the <code>local-cluster</code> row.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="_images/05-acm-policy-history.png" alt="History of the configuration policy acs-secured-cluster-admission on local-cluster" width="with one Violations entry between three No violations entries">
+</div>
+<div class="title">Figure 2. Governance &gt; acs-image-enforcement-baseline &gt; View history - the drift and its correction</div>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>RHACM copies the policy into the namespace of each managed cluster with the name `&lt;namespace&gt;.&lt;policy&gt;`, here `acs-policies.acs-image-enforcement-baseline` in `local-cluster`.</pre>
+</div>
 </div>
 </div>
 </details>
