@@ -445,6 +445,15 @@ oc --context hub annotate applications.argoproj.io acs-image-policies -n openshi
 <div class="paragraph">
 <p>Version <code>1.0.0</code> of <code>legacy-app</code> is older than 365 days and younger than 3650 days, so its age violation resolves.</p>
 </div>
+<div class="paragraph">
+<p>In the portal, go to <strong>Violations</strong> and filter by the namespace <code>acs-image-demo</code> and the policy name <code>Workshop</code>. Before the commit the list had two violations of <code>legacy-app</code>, for the CVE policy and the age policy. Now only the CVE violation is left.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="_images/03-active-after-git-change.png" alt="Active violations filtered by acs-image-demo and Workshop" width="with one result: Workshop - Fixable CVEs of severity Important or higher on legacy-app">
+</div>
+<div class="title">Figure 2. Violations - after the commit, legacy-app only violates the CVE policy</div>
+</div>
 <details>
 <summary class="title">Verify: The new value reached the cluster and Central</summary>
 <div class="content">
@@ -530,7 +539,7 @@ MEDIUM_SEVERITY</code></pre>
 <div class="content">
 <img src="_images/03-policy-managed-externally.png" alt="Edit page of the policy Workshop - Image uses the latest tag with the warning Externally managed policy">
 </div>
-<div class="title">Figure 2. Policy Management - editing an externally managed policy</div>
+<div class="title">Figure 3. Policy Management - editing an externally managed policy</div>
 </div>
 <details>
 <summary class="title">Verify: The portal shows the policy as externally managed</summary>
@@ -588,7 +597,7 @@ curl -sk -H "Authorization: Bearer ${ROX_API_TOKEN}" "https://${ACS_CENTRAL_ROUT
 <i class="fa icon-warning" title="Warning"></i>
 </td>
 <td class="content">
-In two of three validation runs (RHACS 4.11.4), the policy disappeared from Central within seconds, but the custom resource stayed in the cluster with a deletion timestamp. <code>config-controller</code> deleted the policy in Central, failed to remove its finalizer because of an update conflict, and then kept failing with <code>policy "" is not externally managed and can be deleted only from central</code>. A plain <code>oc delete</code> of a test policy did not hit this. Check for it before you restore the policy.
+In three of four validation runs (RHACS 4.11.4), the policy disappeared from Central within seconds, but the custom resource stayed in the cluster with a deletion timestamp. <code>config-controller</code> deleted the policy in Central, failed to remove its finalizer because of an update conflict, and then kept failing with <code>policy "" is not externally managed and can be deleted only from central</code>. A plain <code>oc delete</code> of a test policy did not hit this. Check for it before you restore the policy.
 </td>
 </tr>
 </table>

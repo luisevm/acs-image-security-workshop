@@ -275,7 +275,7 @@
 <div class="sect2">
 <h3 id="tag-images"><a class="anchor" href="#tag-images"></a>1. Publish the two application versions</h3>
 <div class="paragraph">
-<p><span class="icon"><i class="fa fa-clock"></i></span> ~35 seconds (the in-cluster build of <code>current-app:2.0.0</code>)</p>
+<p><span class="icon"><i class="fa fa-clock"></i></span> ~20-35 seconds (the in-cluster build of <code>current-app:2.0.0</code>)</p>
 </div>
 <div class="paragraph">
 <p><strong>What:</strong> Create the <code>acs-image-demo</code> namespace and the two image tags <code>legacy-app:1.0.0</code> and <code>current-app:2.0.0</code> in the internal registry.</p>
@@ -336,8 +336,8 @@ oc --context hub start-build current-app -n acs-image-demo --wait</code></pre>
 <div class="listingblock console-output">
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">NAME                IMAGE REFERENCE                                                                                                                                       UPDATED
-current-app:2.0.0   image-registry.openshift-image-registry.svc:5000/acs-image-demo/current-app@sha256:d11758c5fdeb3046b0277f8ba7fd729bd8cb744d2512eabe0595a55e91963afd   3 seconds ago
-legacy-app:1.0.0    image-registry.openshift-image-registry.svc:5000/acs-image-demo/legacy-app@sha256:53d3a0837cf04ba4c687ddb39b487dc86efdbc14bd528778a7fa522637b1a3a0    32 seconds ago</code></pre>
+current-app:2.0.0   image-registry.openshift-image-registry.svc:5000/acs-image-demo/current-app@sha256:bd60897b4e28c855833e93d8a8266b5e8c2c2d9a9c9daa4af47084d7dbb74167   About a minute ago
+legacy-app:1.0.0    image-registry.openshift-image-registry.svc:5000/acs-image-demo/legacy-app@sha256:53d3a0837cf04ba4c687ddb39b487dc86efdbc14bd528778a7fa522637b1a3a0    About a minute ago</code></pre>
 </div>
 </div>
 <div class="paragraph">
@@ -412,6 +412,15 @@ legacy-app    1/1     1            1           5s</code></pre>
 <div class="paragraph">
 <p>The ACS list shows each image with its build date, its number of CVEs, and how many of them have a fix.</p>
 </div>
+<div class="paragraph">
+<p>The same inventory is in the ACS portal. Go to <strong>Vulnerability Management &gt; Results</strong>, click <strong>Clear filters</strong> to remove the default severity and status filters, then select the entity <strong>Namespace</strong>, type <code>acs-image-demo</code>, and press <kbd>Enter</kbd>. Select the <strong>Image</strong> view above the table.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="_images/01-images-inventory.png" alt="Image view filtered to namespace acs-image-demo listing legacy-app:1.0.0 with 86 Important CVEs and age 4 years" width="and current-app:2.0.0 with 7 Important CVEs and age 33 seconds">
+</div>
+<div class="title">Figure 1. Vulnerability Management &gt; Results, Image view - both versions with their CVEs by severity and their age</div>
+</div>
 <details>
 <summary class="title">Verify: Each pod runs a version tag, and ACS has scanned both images</summary>
 <div class="content">
@@ -421,8 +430,8 @@ legacy-app    1/1     1            1           5s</code></pre>
 <div class="listingblock console-output">
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">POD                            IMAGE                                          IMAGE_ID
-current-app-864b5c97f8-8blrv   &lt;registry&gt;/acs-image-demo/current-app:2.0.0   &lt;registry&gt;/acs-image-demo/current-app@sha256:d11758c5fdeb...
-legacy-app-554b996c89-lplkb    &lt;registry&gt;/acs-image-demo/legacy-app:1.0.0    &lt;registry&gt;/acs-image-demo/legacy-app@sha256:53d3a0837cf0...</code></pre>
+current-app-864b5c97f8-qh5st   &lt;registry&gt;/acs-image-demo/current-app:2.0.0   &lt;registry&gt;/acs-image-demo/current-app@sha256:bd60897b4e28...
+legacy-app-554b996c89-4n7j8    &lt;registry&gt;/acs-image-demo/legacy-app:1.0.0    &lt;registry&gt;/acs-image-demo/legacy-app@sha256:53d3a0837cf0...</code></pre>
 </div>
 </div>
 <div class="paragraph">
@@ -430,12 +439,12 @@ legacy-app-554b996c89-lplkb    &lt;registry&gt;/acs-image-demo/legacy-app:1.0.0 
 </div>
 <div class="listingblock console-output">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">image-registry.openshift-image-registry.svc:5000/acs-image-demo/legacy-app:1.0.0	2021-10-26	781	383
-image-registry.openshift-image-registry.svc:5000/acs-image-demo/current-app:2.0.0	2026-10-09	129	0</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">image-registry.openshift-image-registry.svc:5000/acs-image-demo/legacy-app:1.0.0	2021-10-26	787	384
+image-registry.openshift-image-registry.svc:5000/acs-image-demo/current-app:2.0.0	2026-10-09	127	0</code></pre>
 </div>
 </div>
 <div class="paragraph">
-<p>Version <code>1.0.0</code> is almost five years old and has 383 CVEs with a fix. Version <code>2.0.0</code> was built today and has none with a fix. If the ACS list is empty or shows 0 CVEs, Sensor has not reported the workloads yet. Wait 30 seconds and run the <code>curl</code> command again.</p>
+<p>Version <code>1.0.0</code> is almost five years old and has 384 CVEs with a fix. Version <code>2.0.0</code> was built today and has none with a fix. If the ACS list is empty or shows 0 CVEs, Sensor has not reported the workloads yet. Wait 30 seconds and run the <code>curl</code> command again.</p>
 </div>
 </div>
 </details>
@@ -483,7 +492,7 @@ done</code></pre>
 <div class="content">
 <img src="_images/01-image-details.png" alt="ACS image page for acs-image-demo/legacy-app:1.0.0 with its digest" width="OS rhel:8" height="age 4 years">
 </div>
-<div class="title">Figure 1. Vulnerability Management &gt; Results &gt; image page - version 1.0.0 and the deployment that runs it</div>
+<div class="title">Figure 2. Vulnerability Management &gt; Results &gt; image page - version 1.0.0 and the deployment that runs it</div>
 </div>
 <div class="paragraph">
 <p>The header says <strong>No signature found</strong>. Red Hat signs its images under their original name in <code>registry.access.redhat.com</code>, and the internal registry serves the image under a different name. Signature checks are not part of this session.</p>
@@ -531,7 +540,7 @@ legacy-app:1.0.0	ubi8	8.4-213	rhel:8</code></pre>
 <div class="content">
 <img src="_images/01-search-old-images.png" alt="ACS Search page with the filter Image Created Time &gt;365d and the Deployments category listing keycloak-pgsql" width="legacy-app" height="lightspeed-postgres-server">
 </div>
-<div class="title">Figure 2. Search - deployments that run an image older than 365 days, across all namespaces</div>
+<div class="title">Figure 3. Search - deployments that run an image older than 365 days, across all namespaces</div>
 </div>
 <div class="paragraph">
 <p>Each row links to the deployment in <strong>Risk</strong> and to its <strong>Violations</strong>. The <strong>Images</strong> category also lists images that ACS scanned earlier but that no longer run, so <strong>Deployments</strong> is the better answer to "what runs today".</p>
@@ -589,7 +598,7 @@ showroom-&lt;guid&gt;	showroom</code></pre>
 <div class="content">
 <img src="_images/01-workload-cves.png" alt="User workload vulnerabilities page filtered to namespace acs-image-demo" width="showing 71 CVEs in one image" height="acs-image-demo/legacy-app:1.0.0">
 </div>
-<div class="title">Figure 3. Vulnerability Management &gt; Results - fixable Critical and Important CVEs in acs-image-demo, Image view</div>
+<div class="title">Figure 4. Vulnerability Management &gt; Results - fixable Critical and Important CVEs in acs-image-demo, Image view</div>
 </div>
 <div class="paragraph">
 <p>Switch to the CVE view, open one CVE, and expand the image row. The <strong>CVE fixed in</strong> column names the package version that removes the CVE, and <strong>Advisory</strong> names the Red Hat erratum that ships it.</p>
@@ -607,7 +616,7 @@ showroom-&lt;guid&gt;	showroom</code></pre>
 <i class="fa icon-note" title="Note"></i>
 </td>
 <td class="content">
-<code>current-app:2.0.0</code> is not in the list, although it is not free of CVEs. On the validation date it had five Important CVEs and none of them had a fix yet. Unfixed CVEs drop out of a <strong>Fixable</strong> filter, and they do not match the policy you add in sub-step 8. The base image alone had one more Important CVE, in <code>openssl-libs</code>, with a fix that Red Hat had published but not yet built into UBI 9 minimal. The build in sub-step 1 installed that fix.
+<code>current-app:2.0.0</code> is not in the list, although it is not free of CVEs. On the validation date it had seven Important CVEs and none of them had a fix yet. Unfixed CVEs drop out of a <strong>Fixable</strong> filter, and they do not match the policy you add in sub-step 8. The base image alone had one more Important CVE, in <code>openssl-libs</code>, with a fix that Red Hat had published but not yet built into UBI 9 minimal. The build in sub-step 1 installed that fix.
 </td>
 </tr>
 </table>
@@ -649,6 +658,15 @@ done</code></pre>
 <div class="paragraph">
 <p>Without <code>--cluster</code>, Central tries to pull the image itself and fails with <code>no matching image registries found</code>, because it has no credentials for the internal registry.</p>
 </div>
+<div class="paragraph">
+<p>The portal shows the same counts on the image page. Open <code>acs-image-demo/legacy-app:1.0.0</code> as in sub-step 4 and stay on the <strong>Vulnerabilities</strong> tab: <strong>CVEs by severity</strong> matches the scan summary, and <strong>CVEs by status</strong> splits the CVEs into those with and without a fix.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="_images/01-image-vulnerabilities.png" alt="Vulnerabilities tab of legacy-app:1.0.0 with 86 Important" width="415 Moderate" height="and 286 Low CVEs">
+</div>
+<div class="title">Figure 5. Image page, Vulnerabilities tab - the scan summary of version 1.0.0</div>
+</div>
 <details>
 <summary class="title">Verify: Version 1.0.0 has far more CVEs than version 2.0.0</summary>
 <div class="content">
@@ -658,7 +676,7 @@ done</code></pre>
 <div class="listingblock console-output">
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">Scan results for image: image-registry.openshift-image-registry.svc:5000/acs-image-demo/legacy-app:1.0.0
-(TOTAL-COMPONENTS: 53, TOTAL-VULNERABILITIES: 84, LOW: 0, MODERATE: 0, IMPORTANT: 84, CRITICAL: 0)
+(TOTAL-COMPONENTS: 53, TOTAL-VULNERABILITIES: 86, LOW: 0, MODERATE: 0, IMPORTANT: 86, CRITICAL: 0)
 
 +----------------------------------------+-------------------+-----------------+-----------+------+------------
 |               COMPONENT                |      VERSION      |       CVE       | SEVERITY  | CVSS |
@@ -673,9 +691,9 @@ done</code></pre>
 <div class="listingblock console-output">
 <div class="content">
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">== legacy-app:1.0.0
-{"CRITICAL":0,"IMPORTANT":84,"LOW":285,"MODERATE":412,"TOTAL-COMPONENTS":112,"TOTAL-VULNERABILITIES":781}
+{"CRITICAL":0,"IMPORTANT":86,"LOW":286,"MODERATE":415,"TOTAL-COMPONENTS":112,"TOTAL-VULNERABILITIES":787}
 == current-app:2.0.0
-{"CRITICAL":0,"IMPORTANT":5,"LOW":56,"MODERATE":68,"TOTAL-COMPONENTS":37,"TOTAL-VULNERABILITIES":129}</code></pre>
+{"CRITICAL":0,"IMPORTANT":7,"LOW":56,"MODERATE":64,"TOTAL-COMPONENTS":38,"TOTAL-VULNERABILITIES":127}</code></pre>
 </div>
 </div>
 <div class="paragraph">
@@ -713,6 +731,15 @@ done</code></pre>
 </tr>
 </table>
 </div>
+<div class="paragraph">
+<p>In the ACS portal, go to <strong>Platform Configuration &gt; Policy Management</strong>, filter by the policy name <code>Workshop</code>, and open <strong>Workshop - Fixable CVEs of severity Important or higher</strong>. <strong>Origin</strong> is <strong>Externally managed</strong>, because the policy comes from a custom resource. <strong>Response</strong> is <strong>Inform</strong>: the policy reports and blocks nothing.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="_images/01-policy-inform.png" alt="Policy page of Workshop - Fixable CVEs of severity Important or higher with origin Externally managed" width="response Inform" height="the criteria Fixable and Severity at least Important">
+</div>
+<div class="title">Figure 6. Policy Management - the CVE policy as Central received it from the custom resource</div>
+</div>
 <details>
 <summary class="title">Verify: Central accepted the policy</summary>
 <div class="content">
@@ -746,7 +773,7 @@ done</code></pre>
 <div class="content">
 <img src="_images/01-violations.png" alt="User workload violations filtered by namespace acs-image-demo and policy name Workshop" width="with one violation for legacy-app">
 </div>
-<div class="title">Figure 4. Violations - the workshop CVE policy flags legacy-app</div>
+<div class="title">Figure 7. Violations - the workshop CVE policy flags legacy-app</div>
 </div>
 <div class="paragraph">
 <p>Without the policy filter, the namespace shows several more violations from built-in ACS policies, such as <strong>Fixable Severity at least Important</strong> and <strong>Red Hat Package Manager in Image</strong>.</p>

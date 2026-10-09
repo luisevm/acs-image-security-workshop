@@ -761,6 +761,15 @@ source myenv.sh</code></pre>
 <div class="paragraph">
 <p>Central serves <code>roxctl-linux-amd64</code>, <code>roxctl-linux-arm64</code>, <code>roxctl-darwin-amd64</code>, and <code>roxctl-darwin-arm64</code>. There is no plain <code>roxctl-darwin</code> file.</p>
 </div>
+<div class="paragraph">
+<p>The token is listed in the ACS portal under <strong>Platform Configuration &gt; Integrations</strong>, tab <strong>Authentication</strong>, tile <strong>API Token</strong>. The portal shows its name, role, and expiration date, never the token itself.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="_images/00-api-token.png" alt="API Token list with the token acs-image-workshop" width="role Admin" height="expiring in one year">
+</div>
+<div class="title">Figure 1. Integrations &gt; API Token - the workshop token with the Admin role</div>
+</div>
 <div class="admonitionblock note">
 <table>
 <tr>
@@ -867,7 +876,7 @@ oc --context hub rollout status deploy/admission-control -n stackrox --timeout=6
 <div class="content">
 <img src="_images/00-acs-clusters.png" alt="ACS Clusters page listing the cluster production with cluster status Healthy and sensor upgrade status Up to date with Central">
 </div>
-<div class="title">Figure 1. Platform Configuration &gt; Clusters - the workshop cluster is healthy and up to date with Central</div>
+<div class="title">Figure 2. Platform Configuration &gt; Clusters - the workshop cluster is healthy and up to date with Central</div>
 </div>
 <details>
 <summary class="title">Verify: The cluster is healthy in ACS</summary>

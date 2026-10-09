@@ -306,6 +306,15 @@ oc --context hub wait deploy/alert-sink -n acs-alert-sink \
     -X POST "https://${ACS_CENTRAL_ROUTE}/v1/notifiers" -d @- | jq '{id, name, type}'</code></pre>
 </div>
 </div>
+<div class="paragraph">
+<p>In the ACS portal, go to <strong>Platform Configuration &gt; Integrations</strong> and open the <strong>Notifier</strong> tab. The <strong>Generic Webhook</strong> tile shows <code>1</code>. Click it to see <code>workshop-alert-sink</code> with its endpoint. The other tiles are the systems ACS can send alerts to directly, such as Slack, email, Jira, Splunk, and Microsoft Teams.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="_images/02-notifiers.png" alt="Notifier integrations tab with tiles for Slack" width="Generic Webhook with one integration" height="Jira">
+</div>
+<div class="title">Figure 1. Integrations &gt; Notifier - the generic webhook used in this workshop and the other notifier types</div>
+</div>
 <details>
 <summary class="title">Verify: The notifier exists and Central can reach the receiver</summary>
 <div class="content">
@@ -394,6 +403,15 @@ ALERT policy='This is a test message created to test integration with StackRox.'
 </table>
 <div class="paragraph">
 <p>The <code>Image Age</code> value is a number of days. Version <code>1.0.0</code> was built in October 2021 and version <code>2.0.0</code> in Step 1, so only <code>legacy-app</code> matches.</p>
+</div>
+<div class="paragraph">
+<p>In <strong>Platform Configuration &gt; Policy Management</strong>, filtered by the policy name <code>Workshop</code>, the four policies now show <strong>1 Generic Webhook</strong> in the <strong>Notifiers</strong> column.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="_images/02-policies-inform.png" alt="Policy Management list filtered by Workshop with four enabled" width="externally managed policies" height="each with 1 Generic Webhook notifier">
+</div>
+<div class="title">Figure 2. Policy Management - the four workshop policies, each sending its violations to the webhook</div>
 </div>
 <details>
 <summary class="title">Verify: Central accepted all four policies</summary>
@@ -537,6 +555,15 @@ oc --context hub get deploy -n acs-image-demo</code></pre>
 </div>
 <div class="paragraph">
 <p>The admission controller started to reject new <code>latest</code>-tag deployments about five seconds after the apply on the validation cluster.</p>
+</div>
+<div class="paragraph">
+<p>Open the CVE policy in <strong>Policy Management</strong> again. In Step 1 its <strong>Policy behavior</strong> said <strong>Response: Inform</strong>. Now it says <strong>Enforce</strong>, and <strong>Enforcement</strong> lists the stages where ACS acts.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="_images/02-policy-enforce.png" alt="Policy behavior section with lifecycle stages Build and Deploy" width="response Enforce" height="and enforcement Build and Deploy">
+</div>
+<div class="title">Figure 3. Policy Management &gt; policy page - the CVE policy after the switch</div>
 </div>
 <div class="admonitionblock warning">
 <table>
@@ -711,7 +738,7 @@ The restart of <code>current-app</code> is compliant because the Step 1 build in
 <div class="content">
 <img src="_images/02-attempted-violations.png" alt="Attempted violations in acs-image-demo with the Enforced column showing Blocked Deployment Update for legacy-app and current-app and Blocked Deployment Create for bad-registry">
 </div>
-<div class="title">Figure 1. Violations &gt; Attempted - the requests that the admission controller blocked</div>
+<div class="title">Figure 4. Violations &gt; Attempted - the requests that the admission controller blocked</div>
 </div>
 <details>
 <summary class="title">Verify: Only the compliant restart went through</summary>
@@ -801,6 +828,15 @@ oc --context hub get deploy breakglass-latest -n acs-image-demo</code></pre>
 </div>
 <div class="paragraph">
 <p>The built-in policy <strong>Emergency Deployment Annotation</strong> is enabled by default and records every use of the annotation. The workshop latest-tag policy also reports the deployment, and its alert lists <code>SCALE_TO_ZERO_ENFORCEMENT</code>. On the validation cluster, <code>breakglass-latest</code> was not scaled down and still ran at <code>1/1</code> 90 seconds later.</p>
+</div>
+<div class="paragraph">
+<p>In the portal, go to <strong>Violations</strong> and filter by the entity <strong>Deployment</strong> with the name <code>breakglass-latest</code>. The <strong>Enforced</strong> column says <strong>Yes</strong> for <strong>Workshop - Image uses the latest tag</strong>: ACS recorded the enforcement action, and the break-glass annotation still kept the deployment running.</p>
+</div>
+<div class="imageblock">
+<div class="content">
+<img src="_images/02-break-glass.png" alt="Active violations of breakglass-latest" width="including Emergency Deployment Annotation and Workshop - Image uses the latest tag with Enforced Yes">
+</div>
+<div class="title">Figure 5. Violations - the break-glass deployment and the Emergency Deployment Annotation record</div>
 </div>
 <details>
 <summary class="title">Verify: The deployment was admitted and the bypass is on record</summary>
